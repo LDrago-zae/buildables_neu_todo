@@ -26,26 +26,35 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  void _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate a quick login UX then navigate
-    _auth.login(_emailController.text.trim(), _passwordController.text).then((
-      _,
-    ) {
+    try {
+      await _auth.login(_emailController.text.trim(), _passwordController.text);
+
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
-      setState(() {
-        _isLoading = false;
-      });
-    });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Login failed: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
+
 
   void _navigateToSignup() {
     Navigator.push(

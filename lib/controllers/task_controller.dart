@@ -90,10 +90,13 @@ class TaskController extends ChangeNotifier {
 
   Future<void> addTask(String title, {String? category}) async {
     try {
+      final user = _client.auth.currentUser;
+      if (user == null) throw Exception('User not logged in');
       final insertedList = await _client.from('todos').insert({
         'title': title,
         'done': false,
         'category': category,
+        'created_by': user.id, // Add this line
       }).select();
       if (insertedList.isNotEmpty) {
         final inserted = Task.fromMap(insertedList.first);
@@ -107,6 +110,7 @@ class TaskController extends ChangeNotifier {
       rethrow;
     }
   }
+
 
   Future<void> toggleTask(int index) async {
     final task = _tasks[index];
