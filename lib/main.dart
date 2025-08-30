@@ -1,4 +1,6 @@
+import 'package:buildables_neu_todo/repository/task_repository.dart';
 import 'package:buildables_neu_todo/views/auth/login_screen.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/app_colors.dart';
@@ -13,6 +15,10 @@ void main() async {
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  TaskRepository().initialize(
+    supabase: Supabase.instance.client,
+    connectivity: Connectivity(),
+  );
   runApp(MyApp());
 }
 
