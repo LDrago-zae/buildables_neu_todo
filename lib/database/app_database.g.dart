@@ -97,12 +97,12 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
-  static const VerificationMeta _ownerIdMeta = const VerificationMeta(
-    'ownerId',
+  static const VerificationMeta _createdByMeta = const VerificationMeta(
+    'createdBy',
   );
   @override
-  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
-    'owner_id',
+  late final GeneratedColumn<String> createdBy = GeneratedColumn<String>(
+    'created_by',
     aliasedName,
     false,
     type: DriftSqlType.string,
@@ -153,7 +153,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     done,
     createdAt,
     updatedAt,
-    ownerId,
+    createdBy,
     sharedWith,
     attachmentUrl,
     isSynced,
@@ -219,13 +219,13 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
       );
     }
-    if (data.containsKey('owner_id')) {
+    if (data.containsKey('created_by')) {
       context.handle(
-        _ownerIdMeta,
-        ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta),
+        _createdByMeta,
+        createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
       );
     } else if (isInserting) {
-      context.missing(_ownerIdMeta);
+      context.missing(_createdByMeta);
     }
     if (data.containsKey('attachment_url')) {
       context.handle(
@@ -246,7 +246,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => const {};
+  Set<GeneratedColumn> get $primaryKey => {id};
   @override
   Todo map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -283,9 +283,9 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
-      ownerId: attachedDatabase.typeMapping.read(
+      createdBy: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}owner_id'],
+        data['${effectivePrefix}created_by'],
       )!,
       sharedWith: $TodosTable.$convertersharedWithn.fromSql(
         attachedDatabase.typeMapping.read(
@@ -310,7 +310,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
   }
 
   static TypeConverter<List<String>, String> $convertersharedWith =
-      const StringListConverter();
+      const UuidListConverter();
   static TypeConverter<List<String>?, String?> $convertersharedWithn =
       NullAwareTypeConverter.wrap($convertersharedWith);
 }
@@ -324,7 +324,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   final bool done;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final String ownerId;
+  final String createdBy;
   final List<String>? sharedWith;
   final String? attachmentUrl;
   final bool isSynced;
@@ -337,7 +337,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     required this.done,
     required this.createdAt,
     required this.updatedAt,
-    required this.ownerId,
+    required this.createdBy,
     this.sharedWith,
     this.attachmentUrl,
     required this.isSynced,
@@ -357,7 +357,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     map['done'] = Variable<bool>(done);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
-    map['owner_id'] = Variable<String>(ownerId);
+    map['created_by'] = Variable<String>(createdBy);
     if (!nullToAbsent || sharedWith != null) {
       map['shared_with'] = Variable<String>(
         $TodosTable.$convertersharedWithn.toSql(sharedWith),
@@ -382,7 +382,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       done: Value(done),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
-      ownerId: Value(ownerId),
+      createdBy: Value(createdBy),
       sharedWith: sharedWith == null && nullToAbsent
           ? const Value.absent()
           : Value(sharedWith),
@@ -407,7 +407,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       done: serializer.fromJson<bool>(json['done']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
-      ownerId: serializer.fromJson<String>(json['ownerId']),
+      createdBy: serializer.fromJson<String>(json['createdBy']),
       sharedWith: serializer.fromJson<List<String>?>(json['sharedWith']),
       attachmentUrl: serializer.fromJson<String?>(json['attachmentUrl']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
@@ -425,7 +425,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       'done': serializer.toJson<bool>(done),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
-      'ownerId': serializer.toJson<String>(ownerId),
+      'createdBy': serializer.toJson<String>(createdBy),
       'sharedWith': serializer.toJson<List<String>?>(sharedWith),
       'attachmentUrl': serializer.toJson<String?>(attachmentUrl),
       'isSynced': serializer.toJson<bool>(isSynced),
@@ -441,7 +441,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     bool? done,
     DateTime? createdAt,
     DateTime? updatedAt,
-    String? ownerId,
+    String? createdBy,
     Value<List<String>?> sharedWith = const Value.absent(),
     Value<String?> attachmentUrl = const Value.absent(),
     bool? isSynced,
@@ -454,7 +454,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     done: done ?? this.done,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
-    ownerId: ownerId ?? this.ownerId,
+    createdBy: createdBy ?? this.createdBy,
     sharedWith: sharedWith.present ? sharedWith.value : this.sharedWith,
     attachmentUrl: attachmentUrl.present
         ? attachmentUrl.value
@@ -471,7 +471,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       done: data.done.present ? data.done.value : this.done,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
       sharedWith: data.sharedWith.present
           ? data.sharedWith.value
           : this.sharedWith,
@@ -493,7 +493,7 @@ class Todo extends DataClass implements Insertable<Todo> {
           ..write('done: $done, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('ownerId: $ownerId, ')
+          ..write('createdBy: $createdBy, ')
           ..write('sharedWith: $sharedWith, ')
           ..write('attachmentUrl: $attachmentUrl, ')
           ..write('isSynced: $isSynced')
@@ -511,7 +511,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     done,
     createdAt,
     updatedAt,
-    ownerId,
+    createdBy,
     sharedWith,
     attachmentUrl,
     isSynced,
@@ -528,7 +528,7 @@ class Todo extends DataClass implements Insertable<Todo> {
           other.done == this.done &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
-          other.ownerId == this.ownerId &&
+          other.createdBy == this.createdBy &&
           other.sharedWith == this.sharedWith &&
           other.attachmentUrl == this.attachmentUrl &&
           other.isSynced == this.isSynced);
@@ -543,7 +543,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<bool> done;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
-  final Value<String> ownerId;
+  final Value<String> createdBy;
   final Value<List<String>?> sharedWith;
   final Value<String?> attachmentUrl;
   final Value<bool> isSynced;
@@ -557,7 +557,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.done = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
-    this.ownerId = const Value.absent(),
+    this.createdBy = const Value.absent(),
     this.sharedWith = const Value.absent(),
     this.attachmentUrl = const Value.absent(),
     this.isSynced = const Value.absent(),
@@ -572,14 +572,14 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.done = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
-    required String ownerId,
+    required String createdBy,
     this.sharedWith = const Value.absent(),
     this.attachmentUrl = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : title = Value(title),
        category = Value(category),
-       ownerId = Value(ownerId);
+       createdBy = Value(createdBy);
   static Insertable<Todo> custom({
     Expression<String>? id,
     Expression<String>? title,
@@ -589,7 +589,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Expression<bool>? done,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
-    Expression<String>? ownerId,
+    Expression<String>? createdBy,
     Expression<String>? sharedWith,
     Expression<String>? attachmentUrl,
     Expression<bool>? isSynced,
@@ -604,7 +604,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       if (done != null) 'done': done,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
-      if (ownerId != null) 'owner_id': ownerId,
+      if (createdBy != null) 'created_by': createdBy,
       if (sharedWith != null) 'shared_with': sharedWith,
       if (attachmentUrl != null) 'attachment_url': attachmentUrl,
       if (isSynced != null) 'is_synced': isSynced,
@@ -621,7 +621,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Value<bool>? done,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
-    Value<String>? ownerId,
+    Value<String>? createdBy,
     Value<List<String>?>? sharedWith,
     Value<String?>? attachmentUrl,
     Value<bool>? isSynced,
@@ -636,7 +636,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       done: done ?? this.done,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      ownerId: ownerId ?? this.ownerId,
+      createdBy: createdBy ?? this.createdBy,
       sharedWith: sharedWith ?? this.sharedWith,
       attachmentUrl: attachmentUrl ?? this.attachmentUrl,
       isSynced: isSynced ?? this.isSynced,
@@ -671,8 +671,8 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
-    if (ownerId.present) {
-      map['owner_id'] = Variable<String>(ownerId.value);
+    if (createdBy.present) {
+      map['created_by'] = Variable<String>(createdBy.value);
     }
     if (sharedWith.present) {
       map['shared_with'] = Variable<String>(
@@ -702,7 +702,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
           ..write('done: $done, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('ownerId: $ownerId, ')
+          ..write('createdBy: $createdBy, ')
           ..write('sharedWith: $sharedWith, ')
           ..write('attachmentUrl: $attachmentUrl, ')
           ..write('isSynced: $isSynced, ')
@@ -733,7 +733,7 @@ typedef $$TodosTableCreateCompanionBuilder =
       Value<bool> done,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
-      required String ownerId,
+      required String createdBy,
       Value<List<String>?> sharedWith,
       Value<String?> attachmentUrl,
       Value<bool> isSynced,
@@ -749,7 +749,7 @@ typedef $$TodosTableUpdateCompanionBuilder =
       Value<bool> done,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
-      Value<String> ownerId,
+      Value<String> createdBy,
       Value<List<String>?> sharedWith,
       Value<String?> attachmentUrl,
       Value<bool> isSynced,
@@ -804,8 +804,8 @@ class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get ownerId => $composableBuilder(
-    column: $table.ownerId,
+  ColumnFilters<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -875,8 +875,8 @@ class $$TodosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get ownerId => $composableBuilder(
-    column: $table.ownerId,
+  ColumnOrderings<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -929,8 +929,8 @@ class $$TodosTableAnnotationComposer
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  GeneratedColumn<String> get ownerId =>
-      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+  GeneratedColumn<String> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
 
   GeneratedColumnWithTypeConverter<List<String>?, String> get sharedWith =>
       $composableBuilder(
@@ -983,7 +983,7 @@ class $$TodosTableTableManager
                 Value<bool> done = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
-                Value<String> ownerId = const Value.absent(),
+                Value<String> createdBy = const Value.absent(),
                 Value<List<String>?> sharedWith = const Value.absent(),
                 Value<String?> attachmentUrl = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
@@ -997,7 +997,7 @@ class $$TodosTableTableManager
                 done: done,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
-                ownerId: ownerId,
+                createdBy: createdBy,
                 sharedWith: sharedWith,
                 attachmentUrl: attachmentUrl,
                 isSynced: isSynced,
@@ -1013,7 +1013,7 @@ class $$TodosTableTableManager
                 Value<bool> done = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
-                required String ownerId,
+                required String createdBy,
                 Value<List<String>?> sharedWith = const Value.absent(),
                 Value<String?> attachmentUrl = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
@@ -1027,7 +1027,7 @@ class $$TodosTableTableManager
                 done: done,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
-                ownerId: ownerId,
+                createdBy: createdBy,
                 sharedWith: sharedWith,
                 attachmentUrl: attachmentUrl,
                 isSynced: isSynced,

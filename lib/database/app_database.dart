@@ -19,16 +19,21 @@ class Todos extends Table {
   BoolColumn get done => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
-  TextColumn get ownerId => text()();
-  TextColumn get sharedWith => text().map(const StringListConverter()).nullable()();
+  TextColumn get createdBy => text()(); // Changed from ownerId to createdBy
+  TextColumn get sharedWith =>
+      text().map(const UuidListConverter()).nullable()();
   TextColumn get attachmentUrl => text().nullable()();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
 }
 
-class StringListConverter extends TypeConverter<List<String>, String> {
-  const StringListConverter();
+class UuidListConverter extends TypeConverter<List<String>, String> {
+  const UuidListConverter();
   @override
-  List<String> fromSql(String fromDb) => fromDb.split(',').where((e) => e.isNotEmpty).toList();
+  List<String> fromSql(String fromDb) =>
+      fromDb.split(',').where((e) => e.isNotEmpty).toList();
   @override
   String toSql(List<String> value) => value.join(',');
 }
@@ -38,12 +43,19 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2; // Increment version for migration
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // For simplicity, drop and recreate tables with new schema
+        await m.drop(todos);
+        await m.createAll();
+      }
     },
   );
 }
