@@ -95,6 +95,25 @@ class _HomeScreenState extends State<HomeScreen> {
           onDelete: (i) => _taskController.deleteTask(i),
           onEdit: (i, title, category) =>
               _taskController.updateTask(i, title: title, category: category),
+          onShare: (task, email) => _taskController.shareTask(task.id, email),
+          onTaskUpdated: (updatedTask) {
+            final index = _taskController.tasks.indexWhere(
+              (t) => t.id == updatedTask.id,
+            );
+            if (index != -1) {
+              _taskController.updateTask(
+                index,
+                title: updatedTask.title,
+                category: updatedTask.category,
+              );
+              if (updatedTask.attachmentUrl != null) {
+                _taskController.updateTaskAttachment(
+                  updatedTask.id,
+                  updatedTask.attachmentUrl!,
+                );
+              }
+            }
+          },
         );
       case 2:
       default:

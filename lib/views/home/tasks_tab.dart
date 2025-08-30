@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:buildables_neu_todo/core/app_colors.dart';
 import 'package:buildables_neu_todo/models/task.dart';
 import 'package:buildables_neu_todo/views/widgets/category_chip_selector.dart';
+import 'package:buildables_neu_todo/views/widgets/share_task_dialog.dart';
+import 'package:buildables_neu_todo/views/home/task_detail_screen.dart';
 
 class TasksTab extends StatelessWidget {
   final List<Task> tasks;
@@ -10,6 +12,8 @@ class TasksTab extends StatelessWidget {
   final void Function(int index) onToggle;
   final void Function(int index) onDelete;
   final void Function(int index, String title, String? category) onEdit;
+  final void Function(Task task, String email) onShare;
+  final void Function(Task updatedTask) onTaskUpdated;
 
   const TasksTab({
     super.key,
@@ -19,6 +23,8 @@ class TasksTab extends StatelessWidget {
     required this.onToggle,
     required this.onDelete,
     required this.onEdit,
+    required this.onShare,
+    required this.onTaskUpdated,
   });
 
   @override
@@ -108,6 +114,18 @@ class TasksTab extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: ListTile(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => TaskDetailScreen(
+                                    task: task,
+                                    categories: categories,
+                                    onTaskUpdated: onTaskUpdated,
+                                  ),
+                                ),
+                              );
+                            },
                             leading: Checkbox(
                               value: task.done,
                               onChanged: (_) => onToggle(index),
@@ -139,6 +157,23 @@ class TasksTab extends StatelessWidget {
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                IconButton(
+                                  tooltip: 'Share',
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (ctx) => ShareTaskDialog(
+                                        onShare: (email) {
+                                          onShare(task, email);
+                                        },
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.share,
+                                    color: Colors.black,
+                                  ),
+                                ),
                                 IconButton(
                                   tooltip: 'Edit',
                                   onPressed: () {

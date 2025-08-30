@@ -111,7 +111,6 @@ class TaskController extends ChangeNotifier {
     }
   }
 
-
   Future<void> toggleTask(int index) async {
     final task = _tasks[index];
     try {
@@ -155,6 +154,124 @@ class TaskController extends ChangeNotifier {
     } catch (e) {
       rethrow;
     }
+  }
+
+  // Collaboration features
+  Future<void> shareTask(String taskId, String email) async {
+    try {
+      // First, get the user by email
+      final userQuery = await _client
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+
+      if (userQuery == null) {
+        throw Exception('User with email $email not found');
+      }
+
+      final userId = userQuery['id'] as String;
+
+      // Get current task
+      final taskIndex = _tasks.indexWhere((t) => t.id == taskId);
+      if (taskIndex == -1) throw Exception('Task not found');
+
+      final task = _tasks[taskIndex];
+      final currentSharedWith = task.sharedWith ?? [];
+
+      if (!currentSharedWith.contains(userId)) {
+        final updatedSharedWith = [...currentSharedWith, userId];
+
+        await _client
+            .from('todos')
+            .update({
+              'shared_with': updatedSharedWith,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', taskId);
+
+        // Update local state
+        _tasks[taskIndex] = task.copyWith(sharedWith: updatedSharedWith);
+        notifyListeners();
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> unshareTask(String taskId, String userId) async {
+    try {
+      final taskIndex = _tasks.indexWhere((t) => t.id == taskId);
+      if (taskIndex == -1) throw Exception('Task not found');
+
+      final task = _tasks[taskIndex];
+      final currentSharedWith = task.sharedWith ?? [];
+      final updatedSharedWith = currentSharedWith
+          .where((id) => id != userId)
+          .toList();
+
+      await _client
+          .from('todos')
+          .update({
+            'shared_with': updatedSharedWith,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', taskId);
+
+      // Update local state
+      _tasks[taskIndex] = task.copyWith(sharedWith: updatedSharedWith);
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> updateTaskAttachment(
+    String taskId,
+    String? attachmentUrl,
+  ) async {
+    try {
+      await _client
+          .from('todos')
+          .update({
+            'attachment_url': attachmentUrl,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', taskId);
+
+      // Update local state
+      final taskIndex = _tasks.indexWhere((t) => t.id == taskId);
+      if (taskIndex != -1) {
+        _tasks[taskIndex] = _tasks[taskIndex].copyWith(
+          attachmentUrl: attachmentUrl,
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Get shared tasks
+  List<Task> get sharedTasks {
+    final currentUserId = _client.auth.currentUser?.id;
+    if (currentUserId == null) return [];
+
+    return _tasks
+        .where(
+          (task) =>
+              task.sharedWith?.contains(currentUserId) == true &&
+              task.createdBy != currentUserId,
+        )
+        .toList();
+  }
+
+  // Get owned tasks
+  List<Task> get ownedTasks {
+    final currentUserId = _client.auth.currentUser?.id;
+    if (currentUserId == null) return [];
+
+    return _tasks.where((task) => task.createdBy == currentUserId).toList();
   }
 
   @override
