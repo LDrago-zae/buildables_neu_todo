@@ -67,7 +67,7 @@ class HomeTab extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Recent tasks',
+                  'All tasks',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
@@ -84,55 +84,69 @@ class HomeTab extends StatelessWidget {
             ),
             const SizedBox(height: 15),
             Expanded(
-              child: ListView.builder(
-                itemCount: (tasks.length > 3 ? 3 : tasks.length),
-                itemBuilder: (context, i) {
-                  final task = tasks[i];
-                  final tileColor = task.done
-                      ? AppColors.accentGreen
-                      : AppColors.surface;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: tileColor,
-                        border: Border.all(color: Colors.black, width: 2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ListTile(
-                        dense: false,
-                        leading: Checkbox(
-                          value: task.done,
-                          onChanged: (_) => onToggle(i),
-                          activeColor: Colors.black,
-                          checkColor: tileColor,
-                          side: const BorderSide(color: Colors.black, width: 2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
+              child: tasks.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No tasks yet. Add your first one!',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey,
                         ),
-                        title: Text(
-                          task.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            decoration: task.done
-                                ? TextDecoration.lineThrough
-                                : TextDecoration.none,
-                          ),
-                        ),
-                        subtitle: task.category != null
-                            ? Text(
-                                task.category!,
-                                style: const TextStyle(fontSize: 12),
-                              )
-                            : null,
                       ),
+                    )
+                  : ListView.builder(
+                      itemCount: tasks.length,
+                      itemBuilder: (context, i) {
+                        final task = tasks[i];
+                        final tileColor = task.done
+                            ? AppColors.accentGreen
+                            : AppColors.surface;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: tileColor,
+                              border: Border.all(color: Colors.black, width: 2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              dense: false,
+                              leading: Checkbox(
+                                value: task.done,
+                                onChanged: (_) => onToggle(i),
+                                activeColor: Colors.black,
+                                checkColor: tileColor,
+                                side: const BorderSide(
+                                  color: Colors.black,
+                                  width: 2,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                              title: Text(
+                                task.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  decoration: task.done
+                                      ? TextDecoration.lineThrough
+                                      : TextDecoration.none,
+                                ),
+                              ),
+                              subtitle: task.category != null
+                                  ? Text(
+                                      task.category!,
+                                      style: const TextStyle(fontSize: 12),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),

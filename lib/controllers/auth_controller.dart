@@ -18,7 +18,7 @@ class AuthController {
   Future<AuthResponse> signUp(String email, String password) async {
     try {
       final response = await _client.auth.signUp(
-        email: email,
+        email: email.trim().toLowerCase(),
         password: password,
       );
       return response;

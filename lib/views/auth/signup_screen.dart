@@ -35,7 +35,10 @@ class _SignupScreenState extends State<SignupScreen> {
     });
 
     try {
-      await _auth.signUp(_emailController.text.trim(), _passwordController.text);
+      await _auth.signUp(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -44,9 +47,9 @@ class _SignupScreenState extends State<SignupScreen> {
       Navigator.pop(context); // Go back to login
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Signup failed: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Signup failed: ${e.toString()}')));
     } finally {
       if (mounted) {
         setState(() {
@@ -55,7 +58,6 @@ class _SignupScreenState extends State<SignupScreen> {
       }
     }
   }
-
 
   void _navigateToLogin() {
     Navigator.pop(context);

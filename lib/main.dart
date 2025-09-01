@@ -14,11 +14,29 @@ void main() async {
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+  // Initialize repository
   TaskRepository().initialize(
     supabase: Supabase.instance.client,
     connectivity: Connectivity(),
   );
+
+  // Set up connectivity monitoring
+  Connectivity().onConnectivityChanged.listen((
+    List<ConnectivityResult> results,
+  ) async {
+    // Check if any result indicates connectivity
+    final hasConnectivity = results.any(
+      (result) => result != ConnectivityResult.none,
+    );
+
+    if (hasConnectivity) {
+      // Coming back online - sync pending changes and uploads
+      await TaskRepository().syncPendingChanges();
+      // Note: TaskController will handle file uploads when it's instantiated
+    }
+  });
+
   runApp(MyApp());
 }
 
@@ -37,7 +55,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           brightness: Brightness.light,
-          background: AppColors.background,
+          surface: AppColors.background,
         ),
         textTheme: const TextTheme(
           headlineSmall: TextStyle(

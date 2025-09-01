@@ -6,6 +6,7 @@ import 'package:buildables_neu_todo/models/task.dart';
 import 'package:buildables_neu_todo/views/widgets/app_bottom_nav.dart';
 import 'home_tab.dart';
 import 'tasks_tab.dart';
+import 'shared_tab.dart';
 import 'profile_tab.dart';
 import 'add_task_bottom_sheet.dart';
 
@@ -25,6 +26,9 @@ class _HomeScreenState extends State<HomeScreen> {
     'Study',
     'Shopping',
     'Other',
+    'Health',
+    'Fitness',
+    'Travel',
   ];
 
   @override
@@ -42,16 +46,17 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (ctx) {
         return AddTaskBottomSheet(
           categories: _categories,
-          onSubmit: (title, category) {
-            setState(() {
-              _taskController.addTask(title, category: category);
-            });
+          onTaskAdded: () {
+            // The TaskController will automatically refresh via real-time updates
+            // Just trigger a setState to refresh the UI
+            if (mounted) setState(() {});
           },
           onError: (error) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Failed to add task: $error')),
             );
           },
+          taskController: _taskController,
         );
       },
     );
@@ -66,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: _selectedIndex,
         onTabChange: (index) => setState(() => _selectedIndex = index),
       ),
-      floatingActionButton: _selectedIndex != 2
+      floatingActionButton: _selectedIndex != 3
           ? FloatingActionButton(
               backgroundColor: AppColors.accentYellow,
               onPressed: _showAddTaskSheet,
@@ -116,6 +121,11 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       case 2:
+        return SharedTab(
+          taskController: _taskController,
+          categories: _categories,
+        );
+      case 3:
       default:
         final completed = _taskController.completedCount;
         final pending = _taskController.pendingCount;

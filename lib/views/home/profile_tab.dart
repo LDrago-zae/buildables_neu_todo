@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:buildables_neu_todo/core/app_colors.dart';
+import 'package:buildables_neu_todo/views/widgets/file_picker_test_widget.dart';
 
 class ProfileTab extends StatelessWidget {
   final int completed;
@@ -87,6 +88,35 @@ class ProfileTab extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accentCyan,
+                          foregroundColor: Colors.black,
+                          elevation: 0,
+                          side: const BorderSide(color: Colors.black, width: 2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const FilePickerTestWidget(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.bug_report),
+                        label: const Text(
+                          'Test File Picker',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(

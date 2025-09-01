@@ -1,88 +1,94 @@
+import 'dart:io';
 import 'package:buildables_neu_todo/models/task.dart';
+import 'package:buildables_neu_todo/services/enhanced_file_service.dart';
+import 'package:buildables_neu_todo/repository/task_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:uuid/uuid.dart';
 
 class TaskController extends ChangeNotifier {
   final SupabaseClient _client = Supabase.instance.client;
+  final TaskRepository _repository = TaskRepository();
+  final EnhancedFileService _fileService = EnhancedFileService();
   final List<Task> _tasks;
   RealtimeChannel? _channel;
 
   TaskController({List<Task>? initial})
     : _tasks = List<Task>.from(initial ?? const <Task>[]) {
-    _initRealtime();
     _fetchAll();
+    _initRealtimeAsync();
+  }
+
+  void _initRealtimeAsync() async {
+    await _initRealtime();
   }
 
   List<Task> get tasks => List.unmodifiable(_tasks);
-
   int get completedCount => _tasks.where((t) => t.done).length;
   int get pendingCount => _tasks.length - completedCount;
 
+  // Check if app is online and Supabase is reachable
+  Future<bool> get isOnline async => await _repository.isSupabaseReachable;
+
+  // Refresh data from both Supabase and local database
+  Future<void> refreshData() async {
+    try {
+      await _fetchAll();
+    } catch (e) {
+      debugPrint('Failed to refresh data: $e');
+      rethrow;
+    }
+  }
+
   Future<void> _fetchAll() async {
     try {
-      final response = await _client
-          .from('todos')
-          .select()
-          .order('created_at', ascending: false);
-      final fetched = (response as List)
-          .map((row) => Task.fromMap(row as Map<String, dynamic>))
-          .toList();
+      final fetched = await _repository.getAllTasks();
       _tasks
         ..clear()
         ..addAll(fetched);
       notifyListeners();
     } catch (e) {
-      try {
-        final response = await _client.from('todos').select();
-        final fetched = (response as List)
-            .map((row) => Task.fromMap(row as Map<String, dynamic>))
-            .toList();
-        _tasks
-          ..clear()
-          ..addAll(fetched);
-        notifyListeners();
-      } catch (e2) {
-        debugPrint('Failed to fetch tasks: $e2');
-      }
+      debugPrint('Failed to fetch tasks: $e');
     }
   }
 
-  void _initRealtime() {
+  Future<void> _initRealtime() async {
     _channel?.unsubscribe();
+
+    // Only set up realtime subscriptions if Supabase is reachable
+    final isReachable = await _repository.isSupabaseReachable;
+    if (!isReachable) {
+      print('Supabase not reachable, skipping realtime subscriptions');
+      return;
+    }
+
     _channel = _client.channel('public:todos')
       ..onPostgresChanges(
         event: PostgresChangeEvent.insert,
         schema: 'public',
         table: 'todos',
-        callback: (payload) {
-          final newRow = payload.newRecord;
-          _tasks.insert(0, Task.fromMap(newRow));
-          notifyListeners();
+        callback: (payload) async {
+          await _repository.syncPendingChanges();
+          await _fetchAll();
         },
       )
       ..onPostgresChanges(
         event: PostgresChangeEvent.update,
         schema: 'public',
         table: 'todos',
-        callback: (payload) {
-          final newRow = payload.newRecord;
-          final updated = Task.fromMap(newRow);
-          final idx = _tasks.indexWhere((t) => t.id == updated.id);
-          if (idx != -1) {
-            _tasks[idx] = updated;
-            notifyListeners();
-          }
+        callback: (payload) async {
+          await _repository.syncPendingChanges();
+          await _fetchAll();
         },
       )
       ..onPostgresChanges(
         event: PostgresChangeEvent.delete,
         schema: 'public',
         table: 'todos',
-        callback: (payload) {
-          final oldRow = payload.oldRecord;
-          final id = oldRow['id']?.toString();
-          _tasks.removeWhere((t) => t.id == id);
-          notifyListeners();
+        callback: (payload) async {
+          await _repository.syncPendingChanges();
+          await _fetchAll();
         },
       )
       ..subscribe();
@@ -92,21 +98,80 @@ class TaskController extends ChangeNotifier {
     try {
       final user = _client.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
-      final insertedList = await _client.from('todos').insert({
-        'title': title,
-        'done': false,
-        'category': category,
-        'created_by': user.id, // Add this line
-      }).select();
-      if (insertedList.isNotEmpty) {
-        final inserted = Task.fromMap(insertedList.first);
-        final existingIndex = _tasks.indexWhere((t) => t.id == inserted.id);
+
+      final taskId = const Uuid().v4();
+      final newTask = Task(
+        id: taskId,
+        title: title,
+        category: category,
+        createdBy: user.id,
+        done: false,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      final addedTask = await _repository.addTask(newTask);
+
+      final existingIndex = _tasks.indexWhere((t) => t.id == addedTask.id);
+      if (existingIndex == -1) {
+        _tasks.insert(0, addedTask);
+        notifyListeners();
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> addTaskWithAttachment({
+    required String title,
+    String? category,
+    File? attachmentFile,
+  }) async {
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) throw Exception('User not logged in');
+
+      final taskId = const Uuid().v4();
+      String? attachmentUrl;
+
+      // Store file using enhanced file service (handles offline/online automatically)
+      if (attachmentFile != null) {
+        attachmentUrl = await _fileService.storeFile(attachmentFile, taskId);
+        print('File stored: $attachmentUrl');
+      }
+
+      // Create task with repository
+      final newTask = Task(
+        id: taskId,
+        title: title,
+        category: category,
+        createdBy: user.id,
+        done: false,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      final addedTask = await _repository.addTask(newTask);
+
+      // Update attachment if stored
+      if (attachmentUrl != null) {
+        final updatedTask = addedTask.copyWith(attachmentUrl: attachmentUrl);
+        await _repository.updateTask(updatedTask);
+
+        final index = _tasks.indexWhere((t) => t.id == addedTask.id);
+        if (index != -1) {
+          _tasks[index] = updatedTask;
+          notifyListeners();
+        }
+      } else {
+        final existingIndex = _tasks.indexWhere((t) => t.id == addedTask.id);
         if (existingIndex == -1) {
-          _tasks.insert(0, inserted);
+          _tasks.insert(0, addedTask);
           notifyListeners();
         }
       }
     } catch (e) {
+      print('Error adding task with attachment: $e');
       rethrow;
     }
   }
@@ -114,11 +179,10 @@ class TaskController extends ChangeNotifier {
   Future<void> toggleTask(int index) async {
     final task = _tasks[index];
     try {
-      await _client
-          .from('todos')
-          .update({'done': !task.done})
-          .eq('id', task.id);
-      _tasks[index] = task.copyWith(done: !task.done);
+      final updatedTask = task.copyWith(done: !task.done);
+      await _repository.updateTask(updatedTask);
+
+      _tasks[index] = updatedTask;
       notifyListeners();
     } catch (e) {
       rethrow;
@@ -128,17 +192,13 @@ class TaskController extends ChangeNotifier {
   Future<void> updateTask(int index, {String? title, String? category}) async {
     final task = _tasks[index];
     try {
-      await _client
-          .from('todos')
-          .update({
-            if (title != null) 'title': title,
-            if (category != null) 'category': category,
-          })
-          .eq('id', task.id);
-      _tasks[index] = task.copyWith(
+      final updatedTask = task.copyWith(
         title: title ?? task.title,
         category: category ?? task.category,
       );
+
+      await _repository.updateTask(updatedTask);
+      _tasks[index] = updatedTask;
       notifyListeners();
     } catch (e) {
       rethrow;
@@ -148,7 +208,12 @@ class TaskController extends ChangeNotifier {
   Future<void> deleteTask(int index) async {
     final task = _tasks[index];
     try {
-      await _client.from('todos').delete().eq('id', task.id);
+      // Delete associated file if exists
+      if (task.hasAttachment) {
+        await _fileService.deleteFile(task.attachmentUrl!);
+      }
+
+      await _repository.deleteTask(task.id);
       _tasks.removeAt(index);
       notifyListeners();
     } catch (e) {
@@ -156,25 +221,57 @@ class TaskController extends ChangeNotifier {
     }
   }
 
+  // Upload pending files when coming back online
+  Future<void> uploadPendingFiles() async {
+    try {
+      await _fileService.uploadPendingFiles();
+      print('Pending files upload completed');
+    } catch (e) {
+      print('Error uploading pending files: $e');
+    }
+  }
+
+  // Get user email by ID
+  Future<String> getUserEmail(String userId) async {
+    try {
+      final response = await _client
+          .from('profiles')
+          .select('email')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (response != null) {
+        return response['email'] as String;
+      }
+      return 'Unknown User';
+    } catch (e) {
+      print('Error fetching user email: $e');
+      return 'Unknown User';
+    }
+  }
+
   // Collaboration features
-  Future<void> shareTask(String taskId, String email) async {
+  Future<String?> shareTask(String taskId, String email) async {
     try {
       // First, get the user by email
       final userQuery = await _client
           .from('profiles')
           .select('id')
-          .eq('email', email)
+          .eq('email', email.trim().toLowerCase())
           .maybeSingle();
 
       if (userQuery == null) {
-        throw Exception('User with email $email not found');
+        debugPrint(
+          'Share failed: User with email $email not found in profiles table.',
+        );
+        return 'User with email $email not found. Please ensure they have an account and the email is correct.';
       }
 
       final userId = userQuery['id'] as String;
 
       // Get current task
       final taskIndex = _tasks.indexWhere((t) => t.id == taskId);
-      if (taskIndex == -1) throw Exception('Task not found');
+      if (taskIndex == -1) return 'Task not found';
 
       final task = _tasks[taskIndex];
       final currentSharedWith = task.sharedWith ?? [];
@@ -193,9 +290,15 @@ class TaskController extends ChangeNotifier {
         // Update local state
         _tasks[taskIndex] = task.copyWith(sharedWith: updatedSharedWith);
         notifyListeners();
+      } else {
+        return 'Task is already shared with this user';
       }
+
+      return null; // Success
     } catch (e) {
-      rethrow;
+      // Log detailed error for debugging in terminal
+      debugPrint('Failed to share task for taskId=$taskId to email=$email: $e');
+      return 'Failed to share task: ${e.toString()}';
     }
   }
 
@@ -272,6 +375,13 @@ class TaskController extends ChangeNotifier {
     if (currentUserId == null) return [];
 
     return _tasks.where((task) => task.createdBy == currentUserId).toList();
+  }
+
+  void handleConnectivityChange(ConnectivityResult result) {
+    if (result != ConnectivityResult.none) {
+      // Coming back online - upload pending files
+      uploadPendingFiles();
+    }
   }
 
   @override
