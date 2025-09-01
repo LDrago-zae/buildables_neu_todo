@@ -12,7 +12,7 @@ class TasksTab extends StatelessWidget {
   final void Function(int index) onToggle;
   final void Function(int index) onDelete;
   final void Function(int index, String title, String? category) onEdit;
-  final Future<String?> Function(Task task, String email) onShare;
+  final void Function(Task task, String email) onShare;
   final void Function(Task updatedTask) onTaskUpdated;
 
   const TasksTab({
@@ -163,8 +163,9 @@ class TasksTab extends StatelessWidget {
                                     showDialog(
                                       context: context,
                                       builder: (ctx) => ShareTaskDialog(
-                                        onShare: (email) =>
-                                            onShare(task, email),
+                                        onShare: (email) {
+                                          onShare(task, email);
+                                        },
                                       ),
                                     );
                                   },
