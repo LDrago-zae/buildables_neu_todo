@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:buildables_neu_todo/core/app_colors.dart';
 
 class ShareTaskDialog extends StatefulWidget {
-  final Function(String email) onShare;
+  final Future<String?> Function(String email) onShare;
 
   const ShareTaskDialog({super.key, required this.onShare});
 
@@ -26,9 +26,10 @@ class _ShareTaskDialogState extends State<ShareTaskDialog> {
 
     setState(() => _isLoading = true);
 
-    try {
-      await widget.onShare(_emailController.text.trim());
-      if (mounted) {
+    final error = await widget.onShare(_emailController.text.trim());
+
+    if (mounted) {
+      if (error == null) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -36,18 +37,15 @@ class _ShareTaskDialogState extends State<ShareTaskDialog> {
             backgroundColor: AppColors.accentGreen,
           ),
         );
-      }
-    } catch (e) {
-      if (mounted) {
+      } else {
+        // Log the error to the terminal for debugging
+        // ignore: avoid_print
+        print('Share failed: ' + error);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to share task: ${e.toString()}'),
-            backgroundColor: AppColors.accentPink,
-          ),
+          SnackBar(content: Text(error), backgroundColor: AppColors.accentPink),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     }
   }
 
