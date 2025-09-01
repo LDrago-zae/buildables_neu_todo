@@ -261,7 +261,7 @@ class _TaskAttachmentWidgetState extends State<TaskAttachmentWidget> {
     } else if (fileName.toLowerCase().contains(
       RegExp(r'\.(pdf|doc|docx|txt)$'),
     )) {
-      return 'Document • ${fileName.split('_').skip(2).join('_')}';
+      return 'Document • ${fileName.split('_').last}';
     } else {
       return 'File • ${fileName.split('_').last}';
     }
