@@ -32,6 +32,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     _titleController = TextEditingController(text: widget.task.title);
     _selectedCategory = widget.task.category;
     _attachmentUrl = widget.task.attachmentUrl;
+
+    print('TaskDetailScreen: Initialized with task: ${widget.task.title}');
+    print('TaskDetailScreen: Attachment URL: $_attachmentUrl');
+    print(
+      'TaskDetailScreen: Task has attachment: ${widget.task.hasAttachment}',
+    );
   }
 
   @override
@@ -307,22 +313,26 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     ...widget.task.sharedWith!.map(
                       (email) => Padding(
                         padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.person,
-                              size: 16,
-                              color: Colors.black54,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              email,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.person,
+                                size: 16,
+                                color: Colors.black54,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Text(
+                                email,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

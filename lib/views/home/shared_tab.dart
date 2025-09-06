@@ -363,6 +363,7 @@ class _SharedTabState extends State<SharedTab>
                   ],
                 ),
                 const SizedBox(height: 16),
+                // Creator information
                 Row(
                   children: [
                     Container(
@@ -383,15 +384,137 @@ class _SharedTabState extends State<SharedTab>
                       child: FutureBuilder<String>(
                         future: _getCreatorEmail(task.createdBy),
                         builder: (context, snapshot) {
-                          return Text(
-                            snapshot.data ?? 'Loading...',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Created by:',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                snapshot.data ?? 'Loading...',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
                           );
                         },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Shared emails section
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.black, width: 2),
+                      ),
+                      child: const Icon(
+                        Icons.people,
+                        size: 14,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Shared with:',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          if (task.sharedWith != null &&
+                              task.sharedWith!.isNotEmpty)
+                            FutureBuilder<List<String>>(
+                              future: _getSharedEmails(task.sharedWith!),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Text(
+                                    'Loading emails...',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black54,
+                                    ),
+                                  );
+                                }
+
+                                if (snapshot.hasError ||
+                                    snapshot.data == null) {
+                                  return const Text(
+                                    'Error loading emails',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red,
+                                    ),
+                                  );
+                                }
+
+                                final emails = snapshot.data!;
+                                if (emails.isEmpty) {
+                                  return const Text(
+                                    'No emails found',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black54,
+                                    ),
+                                  );
+                                }
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: emails
+                                      .map(
+                                        (email) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 2,
+                                          ),
+                                          child: Text(
+                                            email,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                );
+                              },
+                            )
+                          else
+                            const Text(
+                              'No emails found',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black54,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     Container(
@@ -414,7 +537,7 @@ class _SharedTabState extends State<SharedTab>
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${(task.sharedWith?.length ?? 0) + 1}',
+                            '${task.sharedWith?.length ?? 0}',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -450,10 +573,33 @@ class _SharedTabState extends State<SharedTab>
     if (creatorId == null) return 'Unknown User';
 
     try {
-      return await widget.taskController.getUserEmail(creatorId);
+      print('SharedTab: Getting creator email for ID: $creatorId');
+      final email = await widget.taskController.getUserEmail(creatorId);
+      print('SharedTab: Creator email: $email');
+      return email;
     } catch (e) {
+      print('SharedTab: Error getting creator email: $e');
       return 'Unknown User';
     }
+  }
+
+  Future<List<String>> _getSharedEmails(List<String> sharedWith) async {
+    print('SharedTab: Converting user IDs to emails: $sharedWith');
+    final emails = <String>[];
+    for (final userId in sharedWith) {
+      try {
+        print('SharedTab: Converting userId: $userId');
+        final email = await widget.taskController.getUserEmail(userId);
+        print('SharedTab: Got email: $email for userId: $userId');
+        if (email.isNotEmpty && email != 'Unknown User') {
+          emails.add(email);
+        }
+      } catch (e) {
+        print('SharedTab: Error converting userId $userId: $e');
+      }
+    }
+    print('SharedTab: Final emails list: $emails');
+    return emails;
   }
 
   String _formatDate(DateTime date) {

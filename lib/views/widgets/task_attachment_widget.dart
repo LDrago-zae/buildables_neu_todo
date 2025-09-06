@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:buildables_neu_todo/core/app_colors.dart';
 import 'package:buildables_neu_todo/services/file_service.dart';
+import 'package:buildables_neu_todo/views/widgets/file_preview_widget.dart';
+import 'package:buildables_neu_todo/views/widgets/file_thumbnail_widget.dart';
 
 class TaskAttachmentWidget extends StatefulWidget {
   final String? attachmentUrl;
@@ -23,6 +25,121 @@ class _TaskAttachmentWidgetState extends State<TaskAttachmentWidget> {
   final FileService _fileService = FileService();
   bool _isUploading = false;
 
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: Colors.black, width: 2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          // File Preview Section
+          if (widget.attachmentUrl != null) ...[
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'CURRENT ATTACHMENT',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // File Preview
+                  Center(
+                    child: FilePreviewWidget(
+                      attachmentUrl: widget.attachmentUrl,
+                      taskId: widget.taskId,
+                      width: 200,
+                      height: 150,
+                      showActions: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // File Info
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentCyan.withOpacity(0.1),
+                      border: Border.all(color: AppColors.accentCyan, width: 1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        FileThumbnailWidget(
+                          attachmentUrl: widget.attachmentUrl,
+                          size: 40,
+                          showBorder: false,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _getFileTypeDisplay(widget.attachmentUrl!),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                'Tap to manage attachment',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.more_vert),
+                          onPressed: _showAttachmentOptions,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            // No Attachment Section
+            ListTile(
+              leading: const Icon(
+                Icons.add_photo_alternate,
+                color: Colors.black,
+              ),
+              title: const Text(
+                'Add Attachment',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              subtitle: const Text(
+                'Tap to attach a photo or file',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              trailing: const Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Colors.black,
+              ),
+              onTap: _isUploading ? null : _showAttachmentOptions,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   void _showAttachmentOptions() {
     showModalBottomSheet(
       context: context,
@@ -36,50 +153,38 @@ class _TaskAttachmentWidgetState extends State<TaskAttachmentWidget> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              decoration: BoxDecoration(
-                color: AppColors.accentYellow,
-                border: Border.all(color: Colors.black, width: 2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'ADD ATTACHMENT',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildOptionTile(
-              icon: Icons.photo_library,
-              title: 'Choose from Gallery',
-              onTap: () => _attachFile('gallery'),
-            ),
-            const SizedBox(height: 12),
-            _buildOptionTile(
-              icon: Icons.camera_alt,
-              title: 'Take Photo',
-              onTap: () => _attachFile('camera'),
-            ),
-            const SizedBox(height: 12),
-            _buildOptionTile(
-              icon: Icons.insert_drive_file,
-              title: 'Choose File',
-              onTap: () => _attachFile('file'),
-            ),
             if (widget.attachmentUrl != null) ...[
-              const SizedBox(height: 12),
+              _buildOptionTile(
+                icon: Icons.visibility,
+                title: 'View Attachment',
+                onTap: _viewAttachment,
+              ),
+              const SizedBox(height: 8),
               _buildOptionTile(
                 icon: Icons.delete,
                 title: 'Remove Attachment',
                 onTap: _removeAttachment,
                 isDestructive: true,
               ),
+              const SizedBox(height: 8),
             ],
-            const SizedBox(height: 20),
+            _buildOptionTile(
+              icon: Icons.photo_library,
+              title: 'Choose from Gallery',
+              onTap: () => _attachFile('gallery'),
+            ),
+            const SizedBox(height: 8),
+            _buildOptionTile(
+              icon: Icons.camera_alt,
+              title: 'Take Photo',
+              onTap: () => _attachFile('camera'),
+            ),
+            const SizedBox(height: 8),
+            _buildOptionTile(
+              icon: Icons.attach_file,
+              title: 'Choose File',
+              onTap: () => _attachFile('file'),
+            ),
           ],
         ),
       ),
@@ -144,8 +249,8 @@ class _TaskAttachmentWidgetState extends State<TaskAttachmentWidget> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Attachment added successfully!'),
+            const SnackBar(
+              content: Text('Attachment added successfully!'),
               backgroundColor: AppColors.accentGreen,
             ),
           );
@@ -178,8 +283,8 @@ class _TaskAttachmentWidgetState extends State<TaskAttachmentWidget> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Attachment removed successfully!'),
+          const SnackBar(
+            content: Text('Attachment removed successfully!'),
             backgroundColor: AppColors.accentGreen,
           ),
         );
@@ -200,60 +305,59 @@ class _TaskAttachmentWidgetState extends State<TaskAttachmentWidget> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: Colors.black, width: 2),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        leading: Icon(
-          widget.attachmentUrl != null
-              ? Icons.attach_file
-              : Icons.add_photo_alternate,
-          color: Colors.black,
+  void _viewAttachment() {
+    if (widget.attachmentUrl == null) return;
+
+    // Handle local files
+    if (widget.attachmentUrl!.startsWith('/') ||
+        widget.attachmentUrl!.startsWith('file://')) {
+      // For local files, we could show a file viewer or download dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Local file - will be uploaded to cloud when online'),
+          backgroundColor: Colors.orange,
         ),
-        title: Text(
-          widget.attachmentUrl != null ? 'View Attachment' : 'Add Attachment',
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
+      );
+      return;
+    }
+
+    // Handle Supabase URLs - open in browser or show file viewer
+    if (widget.attachmentUrl!.startsWith('http')) {
+      // You can implement file viewing here
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Opening: ${widget.attachmentUrl!.split('/').last}'),
+          backgroundColor: AppColors.accentGreen,
         ),
-        subtitle: widget.attachmentUrl != null
-            ? Text(
-                _getFileTypeDisplay(widget.attachmentUrl!),
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
-              )
-            : const Text(
-                'Tap to attach a photo or file',
-                style: TextStyle(fontSize: 12, color: Colors.black54),
-              ),
-        trailing: _isUploading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.black,
-                ),
-              )
-            : const Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Colors.black,
-              ),
-        onTap: _isUploading ? null : _showAttachmentOptions,
-      ),
-    );
+      );
+      return;
+    }
   }
 
   String _getFileTypeDisplay(String url) {
-    final uri = Uri.parse(url);
-    final fileName = uri.pathSegments.last;
+    try {
+      // Handle local file paths
+      if (url.startsWith('/') || url.startsWith('file://')) {
+        final fileName = url.split('/').last;
+        return _getFileTypeFromName(fileName);
+      }
 
+      // Handle Supabase URLs
+      if (url.startsWith('http')) {
+        final uri = Uri.parse(url);
+        final fileName = uri.pathSegments.last;
+        return _getFileTypeFromName(fileName);
+      }
+
+      // Handle other cases
+      return 'File • ${url.split('/').last}';
+    } catch (e) {
+      print('Error parsing file URL: $e');
+      return 'File • Unknown';
+    }
+  }
+
+  String _getFileTypeFromName(String fileName) {
     if (fileName.toLowerCase().contains(
       RegExp(r'\.(jpg|jpeg|png|gif|bmp|webp)$'),
     )) {

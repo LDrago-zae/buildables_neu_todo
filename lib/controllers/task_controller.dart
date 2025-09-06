@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:buildables_neu_todo/models/task.dart';
 import 'package:buildables_neu_todo/services/enhanced_file_service.dart';
+import 'package:buildables_neu_todo/services/email_service.dart';
 import 'package:buildables_neu_todo/repository/task_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,6 +12,7 @@ class TaskController extends ChangeNotifier {
   final SupabaseClient _client = Supabase.instance.client;
   final TaskRepository _repository = TaskRepository();
   final EnhancedFileService _fileService = EnhancedFileService();
+  final EmailService _emailService = EmailService();
   final List<Task> _tasks;
   RealtimeChannel? _channel;
 
@@ -184,6 +186,11 @@ class TaskController extends ChangeNotifier {
 
       _tasks[index] = updatedTask;
       notifyListeners();
+
+      // Send email notification if task was completed
+      if (updatedTask.done && !task.done) {
+        await _sendTaskCompletionEmail(task: updatedTask);
+      }
     } catch (e) {
       rethrow;
     }
@@ -226,8 +233,63 @@ class TaskController extends ChangeNotifier {
     try {
       await _fileService.uploadPendingFiles();
       print('Pending files upload completed');
+
+      // After uploading pending files, sync attachment URLs
+      await _syncAttachmentUrls();
     } catch (e) {
       print('Error uploading pending files: $e');
+    }
+  }
+
+  // Sync attachment URLs after pending files are uploaded
+  Future<void> _syncAttachmentUrls() async {
+    try {
+      for (int i = 0; i < _tasks.length; i++) {
+        final task = _tasks[i];
+        if (task.hasAttachment &&
+            task.attachmentUrl != null &&
+            !task.attachmentUrl!.startsWith('http')) {
+          // This is a local file path, try to get the Supabase URL
+          final supabaseUrl = await _getSupabaseUrlForLocalFile(
+            task.attachmentUrl!,
+          );
+          if (supabaseUrl != null) {
+            // Update the task with the Supabase URL
+            final updatedTask = task.copyWith(attachmentUrl: supabaseUrl);
+            await _repository.updateTask(updatedTask);
+            _tasks[i] = updatedTask;
+            print('Updated task ${task.id} with Supabase URL: $supabaseUrl');
+          }
+        }
+      }
+      notifyListeners();
+    } catch (e) {
+      print('Error syncing attachment URLs: $e');
+    }
+  }
+
+  // Get Supabase URL for a local file
+  Future<String?> _getSupabaseUrlForLocalFile(String localPath) async {
+    try {
+      final fileName = localPath.split('/').last;
+      final filePath = 'task-attachments/$fileName';
+
+      // Check if file exists in Supabase storage
+      final files = await _client.storage
+          .from('task-files')
+          .list(path: 'task-attachments');
+
+      // Check if our file exists in the list
+      final fileExists = files.any((file) => file.name == fileName);
+
+      if (fileExists) {
+        return _client.storage.from('task-files').getPublicUrl(filePath);
+      }
+
+      return null;
+    } catch (e) {
+      print('Error getting Supabase URL for local file: $e');
+      return null;
     }
   }
 
@@ -256,7 +318,7 @@ class TaskController extends ChangeNotifier {
       // First, get the user by email
       final userQuery = await _client
           .from('profiles')
-          .select('id')
+          .select('id, email, full_name')
           .eq('email', email.trim().toLowerCase())
           .maybeSingle();
 
@@ -268,6 +330,8 @@ class TaskController extends ChangeNotifier {
       }
 
       final userId = userQuery['id'] as String;
+      final recipientEmail = userQuery['email'] as String;
+      final recipientName = userQuery['full_name'] as String? ?? 'User';
 
       // Get current task
       final taskIndex = _tasks.indexWhere((t) => t.id == taskId);
@@ -290,6 +354,13 @@ class TaskController extends ChangeNotifier {
         // Update local state
         _tasks[taskIndex] = task.copyWith(sharedWith: updatedSharedWith);
         notifyListeners();
+
+        // Send email notification
+        await _sendTaskShareEmail(
+          task: task,
+          recipientEmail: recipientEmail,
+          recipientName: recipientName,
+        );
       } else {
         return 'Task is already shared with this user';
       }
@@ -381,6 +452,92 @@ class TaskController extends ChangeNotifier {
     if (result != ConnectivityResult.none) {
       // Coming back online - upload pending files
       uploadPendingFiles();
+    }
+  }
+
+  // Email notification helper methods
+  Future<void> _sendTaskShareEmail({
+    required Task task,
+    required String recipientEmail,
+    required String recipientName,
+  }) async {
+    try {
+      // Get current user info
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) return;
+
+      final currentUserEmail = await getUserEmail(currentUser.id);
+      final currentUserName = await _getUserFullName(currentUser.id);
+
+      // Send email notification
+      await _emailService.sendTaskShareNotification(
+        recipientEmail: recipientEmail,
+        recipientName: recipientName,
+        taskTitle: task.title,
+        taskCategory: task.category ?? 'General',
+        sharerName: currentUserName,
+        sharerEmail: currentUserEmail,
+        taskDescription: null, // Add description field to Task model if needed
+        attachmentUrl: task.attachmentUrl,
+      );
+
+      print('Task share email sent to $recipientEmail');
+    } catch (e) {
+      print('Failed to send task share email: $e');
+      // Don't throw error - email failure shouldn't break task sharing
+    }
+  }
+
+  Future<void> _sendTaskCompletionEmail({required Task task}) async {
+    try {
+      // Get current user info
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) return;
+
+      final currentUserName = await _getUserFullName(currentUser.id);
+
+      // Get all users who have this task shared with them
+      final sharedWith = task.sharedWith ?? [];
+      if (sharedWith.isEmpty) return;
+
+      // Send completion notification to all shared users
+      for (final userId in sharedWith) {
+        if (userId != currentUser.id) {
+          // Don't send to the person who completed it
+          final userEmail = await getUserEmail(userId);
+          final userName = await _getUserFullName(userId);
+
+          await _emailService.sendTaskCompletionNotification(
+            recipientEmail: userEmail,
+            recipientName: userName,
+            taskTitle: task.title,
+            completedByName: currentUserName,
+          );
+        }
+      }
+
+      print('Task completion emails sent');
+    } catch (e) {
+      print('Failed to send task completion emails: $e');
+      // Don't throw error - email failure shouldn't break task completion
+    }
+  }
+
+  Future<String> _getUserFullName(String userId) async {
+    try {
+      final response = await _client
+          .from('profiles')
+          .select('full_name')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (response != null && response['full_name'] != null) {
+        return response['full_name'] as String;
+      }
+      return 'User';
+    } catch (e) {
+      print('Error fetching user full name: $e');
+      return 'User';
     }
   }
 

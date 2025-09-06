@@ -4,6 +4,7 @@ import 'package:buildables_neu_todo/models/task.dart';
 import 'package:buildables_neu_todo/views/widgets/category_chip_selector.dart';
 import 'package:buildables_neu_todo/views/widgets/share_task_dialog.dart';
 import 'package:buildables_neu_todo/views/home/task_detail_screen.dart';
+import 'package:buildables_neu_todo/views/widgets/file_thumbnail_widget.dart';
 
 class TasksTab extends StatelessWidget {
   final List<Task> tasks;
@@ -12,7 +13,7 @@ class TasksTab extends StatelessWidget {
   final void Function(int index) onToggle;
   final void Function(int index) onDelete;
   final void Function(int index, String title, String? category) onEdit;
-  final void Function(Task task, String email) onShare;
+  final Future<String?> Function(Task task, String email) onShare;
   final void Function(Task updatedTask) onTaskUpdated;
 
   const TasksTab({
@@ -139,14 +140,28 @@ class TasksTab extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                             ),
-                            title: Text(
-                              task.title,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                decoration: task.done
-                                    ? TextDecoration.lineThrough
-                                    : TextDecoration.none,
-                              ),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    task.title,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      decoration: task.done
+                                          ? TextDecoration.lineThrough
+                                          : TextDecoration.none,
+                                    ),
+                                  ),
+                                ),
+                                if (task.hasAttachment) ...[
+                                  const SizedBox(width: 8),
+                                  FileThumbnailWidget(
+                                    attachmentUrl: task.attachmentUrl,
+                                    size: 24,
+                                    showBorder: false,
+                                  ),
+                                ],
+                              ],
                             ),
                             subtitle: task.category != null
                                 ? Text(
@@ -164,7 +179,7 @@ class TasksTab extends StatelessWidget {
                                       context: context,
                                       builder: (ctx) => ShareTaskDialog(
                                         onShare: (email) {
-                                          onShare(task, email);
+                                          return onShare(task, email);
                                         },
                                       ),
                                     );
