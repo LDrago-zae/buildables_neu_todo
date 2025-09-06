@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:buildables_neu_todo/core/app_colors.dart';
 import '../auth/login_screen.dart';
 import 'package:buildables_neu_todo/controllers/task_controller.dart';
-import 'package:buildables_neu_todo/models/task.dart';
 import 'package:buildables_neu_todo/views/widgets/app_bottom_nav.dart';
 import 'home_tab.dart';
 import 'tasks_tab.dart';
+import 'dashboard_tab.dart';
 import 'shared_tab.dart';
 import 'profile_tab.dart';
 import 'add_task_bottom_sheet.dart';
@@ -34,8 +34,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _taskController = TaskController(initial: const <Task>[])
-      ..addListener(() => setState(() {}));
+
+    // Initialize TaskController
+    _taskController = TaskController();
+
+    // Test email configuration (temporary - remove after testing)
+    _taskController.testEmailConfiguration();
   }
 
   void _showAddTaskSheet() {
@@ -71,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: _selectedIndex,
         onTabChange: (index) => setState(() => _selectedIndex = index),
       ),
-      floatingActionButton: _selectedIndex != 3
+      floatingActionButton: _selectedIndex != 4
           ? FloatingActionButton(
               backgroundColor: AppColors.accentYellow,
               onPressed: _showAddTaskSheet,
@@ -100,7 +104,8 @@ class _HomeScreenState extends State<HomeScreen> {
           onDelete: (i) => _taskController.deleteTask(i),
           onEdit: (i, title, category) =>
               _taskController.updateTask(i, title: title, category: category),
-          onShare: (task, email) => _taskController.shareTask(task.id, email),
+          onShare: (task, email) =>
+              _taskController.shareTaskLegacy(task.id, email),
           onTaskUpdated: (updatedTask) {
             final index = _taskController.tasks.indexWhere(
               (t) => t.id == updatedTask.id,
@@ -121,11 +126,13 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       case 2:
+        return DashboardTab(taskController: _taskController);
+      case 3:
         return SharedTab(
           taskController: _taskController,
           categories: _categories,
         );
-      case 3:
+      case 4:
       default:
         final completed = _taskController.completedCount;
         final pending = _taskController.pendingCount;
