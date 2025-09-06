@@ -3,6 +3,7 @@ import 'package:buildables_neu_todo/models/task.dart';
 import 'package:buildables_neu_todo/services/enhanced_file_service.dart';
 import 'package:buildables_neu_todo/services/email_service.dart';
 import 'package:buildables_neu_todo/repository/task_repository.dart';
+import 'package:buildables_neu_todo/views/widgets/share_task_dialog.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -13,6 +14,7 @@ class TaskController extends ChangeNotifier {
   final TaskRepository _repository = TaskRepository();
   final EnhancedFileService _fileService = EnhancedFileService();
   final EmailService _emailService = EmailService();
+  final Connectivity _connectivity = Connectivity();
   final List<Task> _tasks;
   RealtimeChannel? _channel;
 
@@ -32,6 +34,12 @@ class TaskController extends ChangeNotifier {
 
   // Check if app is online and Supabase is reachable
   Future<bool> get isOnline async => await _repository.isSupabaseReachable;
+
+  // Get all tasks (alias for _tasks getter for backward compatibility)
+  Future<List<Task>> getAllTasks() async {
+    await _fetchAll();
+    return tasks;
+  }
 
   // Refresh data from both Supabase and local database
   Future<void> refreshData() async {
@@ -312,60 +320,96 @@ class TaskController extends ChangeNotifier {
     }
   }
 
-  // Collaboration features
-  Future<String?> shareTask(String taskId, String email) async {
+  // Test email configuration
+  Future<void> testEmailConfiguration() async {
+    print('\n=== TESTING EMAIL CONFIGURATION ===');
+    final result = await EmailService.testConfiguration();
+
+    if (result['success']) {
+      print('✅ ${result['message']}');
+      if (result['details'] != null) {
+        print('Details: ${result['details']}');
+      }
+    } else {
+      print('❌ ${result['error']}');
+      if (result['suggestions'] != null) {
+        print('Suggestions:');
+        for (String suggestion in result['suggestions']) {
+          print('  $suggestion');
+        }
+      }
+      if (result['exception'] != null) {
+        print('Exception: ${result['exception']}');
+      }
+    }
+    print('=====================================\n');
+  }
+
+  // Legacy share method for backward compatibility
+  Future<String?> shareTaskLegacy(String taskId, String email) async {
     try {
-      // First, get the user by email
+      // First, check if this is an authenticated user
       final userQuery = await _client
           .from('profiles')
           .select('id, email, full_name')
           .eq('email', email.trim().toLowerCase())
           .maybeSingle();
 
-      if (userQuery == null) {
-        debugPrint(
-          'Share failed: User with email $email not found in profiles table.',
-        );
-        return 'User with email $email not found. Please ensure they have an account and the email is correct.';
-      }
+      if (userQuery != null) {
+        // User exists in profiles - share with authenticated user
+        final userId = userQuery['id'] as String;
+        final recipientEmail = userQuery['email'] as String;
+        final recipientName = userQuery['full_name'] as String? ?? 'User';
 
-      final userId = userQuery['id'] as String;
-      final recipientEmail = userQuery['email'] as String;
-      final recipientName = userQuery['full_name'] as String? ?? 'User';
+        // Get current task
+        final taskIndex = _tasks.indexWhere((t) => t.id == taskId);
+        if (taskIndex == -1) return 'Task not found';
 
-      // Get current task
-      final taskIndex = _tasks.indexWhere((t) => t.id == taskId);
-      if (taskIndex == -1) return 'Task not found';
+        final task = _tasks[taskIndex];
+        final currentSharedWith = task.sharedWith ?? [];
 
-      final task = _tasks[taskIndex];
-      final currentSharedWith = task.sharedWith ?? [];
+        if (!currentSharedWith.contains(userId)) {
+          final updatedSharedWith = [...currentSharedWith, userId];
 
-      if (!currentSharedWith.contains(userId)) {
-        final updatedSharedWith = [...currentSharedWith, userId];
+          await _client
+              .from('todos')
+              .update({
+                'shared_with': updatedSharedWith,
+                'updated_at': DateTime.now().toIso8601String(),
+              })
+              .eq('id', taskId);
 
-        await _client
-            .from('todos')
-            .update({
-              'shared_with': updatedSharedWith,
-              'updated_at': DateTime.now().toIso8601String(),
-            })
-            .eq('id', taskId);
+          // Update local state
+          _tasks[taskIndex] = task.copyWith(sharedWith: updatedSharedWith);
+          notifyListeners();
 
-        // Update local state
-        _tasks[taskIndex] = task.copyWith(sharedWith: updatedSharedWith);
-        notifyListeners();
+          // Send email notification
+          await _sendTaskShareEmail(
+            task: task,
+            recipientEmail: recipientEmail,
+            recipientName: recipientName,
+          );
 
-        // Send email notification
-        await _sendTaskShareEmail(
-          task: task,
-          recipientEmail: recipientEmail,
-          recipientName: recipientName,
-        );
+          return null; // Success
+        } else {
+          return 'Task is already shared with this user';
+        }
       } else {
-        return 'Task is already shared with this user';
-      }
+        // User doesn't exist in profiles - share via email (external sharing)
+        debugPrint('User not found in profiles, sharing via email: $email');
 
-      return null; // Success
+        try {
+          await shareTaskWithEmail(
+            taskId: taskId,
+            recipientEmail: email.trim(),
+            recipientName: email.split('@')[0], // Use email prefix as name
+            message: 'You have been invited to collaborate on this task!',
+          );
+          return null; // Success
+        } catch (e) {
+          return 'Failed to send email invitation: ${e.toString()}';
+        }
+      }
     } catch (e) {
       // Log detailed error for debugging in terminal
       debugPrint('Failed to share task for taskId=$taskId to email=$email: $e');
@@ -462,56 +506,58 @@ class TaskController extends ChangeNotifier {
     required String recipientName,
   }) async {
     try {
-      // Get current user info
+      if (!await isOnline) {
+        print('Offline: Task share email queued for when online');
+        return; // Optionally queue email for later
+      }
+
       final currentUser = _client.auth.currentUser;
       if (currentUser == null) return;
 
       final currentUserEmail = await getUserEmail(currentUser.id);
       final currentUserName = await _getUserFullName(currentUser.id);
 
-      // Send email notification
       await _emailService.sendTaskShareNotification(
         recipientEmail: recipientEmail,
         recipientName: recipientName,
+        senderName: currentUserName,
+        senderEmail: currentUserEmail,
         taskTitle: task.title,
         taskCategory: task.category ?? 'General',
-        sharerName: currentUserName,
-        sharerEmail: currentUserEmail,
-        taskDescription: null, // Add description field to Task model if needed
-        attachmentUrl: task.attachmentUrl,
+        shareMessage: '',
+        hasAttachment: task.hasAttachment,
       );
 
       print('Task share email sent to $recipientEmail');
     } catch (e) {
       print('Failed to send task share email: $e');
-      // Don't throw error - email failure shouldn't break task sharing
     }
   }
 
   Future<void> _sendTaskCompletionEmail({required Task task}) async {
     try {
-      // Get current user info
+      if (!await isOnline) {
+        print('Offline: Task completion email queued for when online');
+        return; // Optionally queue email for later
+      }
+
       final currentUser = _client.auth.currentUser;
       if (currentUser == null) return;
 
       final currentUserName = await _getUserFullName(currentUser.id);
-
-      // Get all users who have this task shared with them
       final sharedWith = task.sharedWith ?? [];
       if (sharedWith.isEmpty) return;
 
-      // Send completion notification to all shared users
       for (final userId in sharedWith) {
         if (userId != currentUser.id) {
-          // Don't send to the person who completed it
           final userEmail = await getUserEmail(userId);
           final userName = await _getUserFullName(userId);
 
           await _emailService.sendTaskCompletionNotification(
             recipientEmail: userEmail,
             recipientName: userName,
+            senderName: currentUserName,
             taskTitle: task.title,
-            completedByName: currentUserName,
           );
         }
       }
@@ -519,7 +565,6 @@ class TaskController extends ChangeNotifier {
       print('Task completion emails sent');
     } catch (e) {
       print('Failed to send task completion emails: $e');
-      // Don't throw error - email failure shouldn't break task completion
     }
   }
 
@@ -538,6 +583,197 @@ class TaskController extends ChangeNotifier {
     } catch (e) {
       print('Error fetching user full name: $e');
       return 'User';
+    }
+  }
+
+  // Add these methods to your existing TaskController
+
+  // Share with authenticated users (internal)
+  Future<void> shareTaskWithAuthenticatedUser({
+    required String taskId,
+    required String userIdentifier,
+    required String userName,
+    required String message,
+  }) async {
+    try {
+      final connectivity = await _connectivity.checkConnectivity();
+      if (connectivity == ConnectivityResult.none) {
+        throw Exception('Cannot share task while offline');
+      }
+
+      // Get current user info
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Get the task
+      final tasks = await getAllTasks();
+      final task = tasks.firstWhere(
+        (t) => t.id == taskId,
+        orElse: () => throw Exception('Task not found'),
+      );
+
+      print(
+        'TaskController: Sharing task ${task.title} with authenticated user: $userIdentifier',
+      );
+
+      // Find the user in Supabase (by email or username)
+      String? recipientUserId;
+      try {
+        // Try to find user by email first
+        if (EmailService.isValidEmail(userIdentifier)) {
+          final userResponse = await _client.auth.admin.listUsers();
+          final user = userResponse.firstWhere(
+            (u) => u.email == userIdentifier,
+            orElse: () => throw Exception('User not found'),
+          );
+          recipientUserId = user.id;
+        } else {
+          // If not an email, treat as username and try to find in profiles table
+          final profileResponse = await _client
+              .from('profiles')
+              .select('id')
+              .eq('username', userIdentifier)
+              .maybeSingle();
+
+          if (profileResponse != null) {
+            recipientUserId = profileResponse['id'];
+          } else {
+            throw Exception('User not found');
+          }
+        }
+      } catch (e) {
+        throw Exception('User "$userIdentifier" not found in the app');
+      }
+
+      // Update task's shared_with array
+      final currentSharedWith = task.sharedWith ?? [];
+      if (recipientUserId != null &&
+          !currentSharedWith.contains(recipientUserId)) {
+        currentSharedWith.add(recipientUserId);
+
+        // Update in Supabase
+        await _client
+            .from('todos')
+            .update({
+              'shared_with': currentSharedWith,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', taskId);
+
+        // Update local database through repository
+        final updatedTask = task.copyWith(
+          sharedWith: currentSharedWith,
+          updatedAt: DateTime.now(),
+        );
+        await _repository.updateTask(updatedTask);
+
+        print(
+          'TaskController: Task shared successfully with authenticated user: $userIdentifier',
+        );
+      } else {
+        print('TaskController: Task already shared with user: $userIdentifier');
+      }
+
+      // Refresh tasks
+      await getAllTasks();
+    } catch (e) {
+      print('TaskController: Error sharing task with authenticated user: $e');
+      rethrow;
+    }
+  }
+
+  // Share with anyone via email (external)
+  Future<void> shareTaskWithEmail({
+    required String taskId,
+    required String recipientEmail,
+    required String recipientName,
+    required String message,
+  }) async {
+    try {
+      final connectivity = await _connectivity.checkConnectivity();
+      if (connectivity == ConnectivityResult.none) {
+        throw Exception(
+          'Cannot share task while offline - email requires internet connection',
+        );
+      }
+
+      // Get current user info
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Get the task
+      final tasks = await getAllTasks();
+      final task = tasks.firstWhere(
+        (t) => t.id == taskId,
+        orElse: () => throw Exception('Task not found'),
+      );
+
+      print(
+        'TaskController: Sharing task ${task.title} with email: $recipientEmail',
+      );
+
+      // Send email notification via Mailtrap
+      final emailSent = await EmailService.sendTaskShareEmail(
+        recipientEmail: recipientEmail,
+        recipientName: recipientName,
+        senderName:
+            currentUser.userMetadata?['full_name'] ??
+            currentUser.email ??
+            'Unknown User',
+        senderEmail: currentUser.email ?? 'unknown@example.com',
+        taskTitle: task.title,
+        taskCategory: task.category ?? 'General',
+        shareMessage: message,
+        hasAttachment: task.hasAttachment,
+      );
+
+      if (!emailSent) {
+        throw Exception(
+          'Failed to send email invitation. Please check your Mailtrap configuration.',
+        );
+      }
+
+      print(
+        'TaskController: Email invitation sent successfully to: $recipientEmail',
+      );
+
+      // Note: Email invitations are not tracked in shared_with field
+      // since that field is constrained to UUIDs for authenticated users only
+
+      // Refresh tasks
+      await getAllTasks();
+    } catch (e) {
+      print('TaskController: Error sharing task via email: $e');
+      rethrow;
+    }
+  }
+
+  // Combined share method that routes to appropriate handler
+  Future<void> shareTask({
+    required String taskId,
+    required String identifier,
+    required String name,
+    required ShareType shareType,
+    required String message,
+  }) async {
+    if (shareType == ShareType.authenticated) {
+      await shareTaskWithAuthenticatedUser(
+        taskId: taskId,
+        userIdentifier: identifier,
+        userName: name,
+        message: message,
+      );
+    } else {
+      await shareTaskWithEmail(
+        taskId: taskId,
+        recipientEmail: identifier,
+        recipientName: name,
+        message: message,
+      );
     }
   }
 
