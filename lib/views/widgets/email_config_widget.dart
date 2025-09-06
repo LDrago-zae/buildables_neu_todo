@@ -36,6 +36,10 @@ class _EmailConfigWidgetState extends State<EmailConfigWidget> {
     setState(() => _isLoading = true);
 
     try {
+      if (!_emailService.isConfigured) {
+        throw Exception('Email service not configured. Check .env file.');
+      }
+
       final success = await _emailService.sendWelcomeEmail(
         recipientEmail: _emailController.text.trim(),
         recipientName: _nameController.text.trim(),
@@ -46,8 +50,8 @@ class _EmailConfigWidgetState extends State<EmailConfigWidget> {
           SnackBar(
             content: Text(
               success
-                  ? 'Test email sent successfully!'
-                  : 'Failed to send test email. Check your configuration.',
+                  ? 'Test email sent successfully! Check your Mailtrap inbox.'
+                  : 'Failed to send test email. Verify Mailtrap credentials.',
             ),
             backgroundColor: success
                 ? AppColors.accentGreen
@@ -65,7 +69,9 @@ class _EmailConfigWidgetState extends State<EmailConfigWidget> {
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -128,9 +134,9 @@ class _EmailConfigWidgetState extends State<EmailConfigWidget> {
                     const SizedBox(height: 8),
                     const Text(
                       'Please add the following to your .env file:\n'
-                      'MAILTRAP_API_TOKEN=your_api_token\n'
+                      'MAILTRAP_API_TOKEN=your_smtp_username\n'
                       'MAILTRAP_FROM_EMAIL=your_email@domain.com\n'
-                      'MAILTRAP_FROM_NAME=Your App Name',
+                      'MAILTRAP_FROM_NAME=Buildables Todo',
                     ),
                   ],
                 ),

@@ -178,9 +178,39 @@ class TasksTab extends StatelessWidget {
                                     showDialog(
                                       context: context,
                                       builder: (ctx) => ShareTaskDialog(
-                                        onShare: (email) {
-                                          return onShare(task, email);
-                                        },
+                                        taskTitle: task.title,
+                                        onShare:
+                                            (
+                                              identifier,
+                                              name,
+                                              shareType,
+                                              message,
+                                            ) async {
+                                              // For backward compatibility, just use the email/identifier
+                                              try {
+                                                final result = await onShare(
+                                                  task,
+                                                  identifier,
+                                                );
+                                                if (result != null) {
+                                                  // Show error message
+                                                  if (ctx.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(result),
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                      ),
+                                                    );
+                                                  }
+                                                  throw Exception(result);
+                                                }
+                                              } catch (e) {
+                                                rethrow;
+                                              }
+                                            },
                                       ),
                                     );
                                   },
