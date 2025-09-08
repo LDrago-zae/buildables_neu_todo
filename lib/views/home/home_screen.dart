@@ -42,6 +42,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _taskController.testEmailConfiguration();
   }
 
+  @override
+  void dispose() {
+    _taskController.dispose();
+    super.dispose();
+  }
+
   void _showAddTaskSheet() {
     showModalBottomSheet(
       context: context,
@@ -70,7 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: _buildBody(),
+      body: AnimatedBuilder(
+        animation: _taskController,
+        builder: (context, _) => _buildBody(),
+      ),
       bottomNavigationBar: AppBottomNav(
         selectedIndex: _selectedIndex,
         onTabChange: (index) => setState(() => _selectedIndex = index),
