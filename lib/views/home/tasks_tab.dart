@@ -44,8 +44,19 @@ class TasksTab extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.accentYellow,
-                  border: Border.all(color: Colors.black, width: 2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      offset: const Offset(4, 4),
+                      blurRadius: 8,
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.2),
+                      offset: const Offset(-4, -4),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
                 child: const Text(
                   'YOUR TASKS',
@@ -70,86 +81,189 @@ class TasksTab extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  height: 44,
+                  height: 48,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accentYellow,
                       foregroundColor: Colors.black,
                       elevation: 0,
-                      side: const BorderSide(color: Colors.black, width: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      shadowColor: Colors.black.withOpacity(0.2),
                     ),
                     onPressed: onAddTaskTap,
-                    icon: const Icon(Icons.add, size: 18),
+                    icon: Transform.scale(
+                      scale: 1.2,
+                      child: const Icon(Icons.add, size: 20),
+                    ),
                     label: const Text(
                       'ADD TASK',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Expanded(
               child: tasks.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'No tasks yet. Add your first one!',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: Colors.black.withOpacity(0.6),
+                        ),
                       ),
                     )
-                  : ListView.separated(
-                      itemCount: tasks.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final task = tasks[index];
-                        final Color tileColor = task.done
-                            ? AppColors.accentGreen
-                            : AppColors.surface;
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: tileColor,
-                            border: Border.all(color: Colors.black, width: 2),
-                            borderRadius: BorderRadius.circular(12),
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final double width = constraints.maxWidth;
+                        int crossAxisCount = 1;
+                        if (width >= 1200) {
+                          crossAxisCount = 4;
+                        } else if (width >= 900) {
+                          crossAxisCount = 3;
+                        } else if (width >= 600) {
+                          crossAxisCount = 2;
+                        }
+
+                        return GridView.builder(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
+                                childAspectRatio: 4 / 2.2,
+                              ),
+                          itemCount: tasks.length,
+                          itemBuilder: (context, index) {
+                            final task = tasks[index];
+                            return _buildTaskCard(context, task, index);
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTaskCard(BuildContext context, Task task, int index) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TaskDetailScreen(
+              task: task,
+              categories: categories,
+              onTaskUpdated: onTaskUpdated,
+            ),
+          ),
+        );
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          gradient: task.done
+              ? LinearGradient(
+                  colors: [
+                    AppColors.accentGreen.withOpacity(0.8),
+                    AppColors.accentGreen.withOpacity(0.6),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : LinearGradient(
+                  colors: [
+                    AppColors.surface,
+                    AppColors.surface.withOpacity(0.9),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              offset: const Offset(4, 4),
+              blurRadius: 8,
+            ),
+            BoxShadow(
+              color: Colors.white.withOpacity(0.2),
+              offset: const Offset(-4, -4),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TaskDetailScreen(
+                    task: task,
+                    categories: categories,
+                    onTaskUpdated: onTaskUpdated,
+                  ),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Transform.scale(
+                        scale: 1.2,
+                        child: Checkbox(
+                          value: task.done,
+                          onChanged: (_) => onToggle(index),
+                          activeColor: Colors.black,
+                          checkColor: AppColors.accentGreen,
+                          side: BorderSide(
+                            color: Colors.black.withOpacity(0.6),
+                            width: 2,
                           ),
-                          child: ListTile(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => TaskDetailScreen(
-                                    task: task,
-                                    categories: categories,
-                                    onTaskUpdated: onTaskUpdated,
-                                  ),
-                                ),
-                              );
-                            },
-                            leading: Checkbox(
-                              value: task.done,
-                              onChanged: (_) => onToggle(index),
-                              activeColor: Colors.black,
-                              checkColor: tileColor,
-                              side: const BorderSide(
-                                color: Colors.black,
-                                width: 2,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                            title: Row(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
                                 Expanded(
                                   child: Text(
                                     task.title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 16,
                                       decoration: task.done
                                           ? TextDecoration.lineThrough
                                           : TextDecoration.none,
+                                      color: Colors.black.withOpacity(0.9),
                                     ),
                                   ),
                                 ),
@@ -163,141 +277,182 @@ class TasksTab extends StatelessWidget {
                                 ],
                               ],
                             ),
-                            subtitle: task.category != null
-                                ? Text(
+                            if (task.category != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
                                     task.category!,
-                                    style: const TextStyle(fontSize: 12),
-                                  )
-                                : null,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  tooltip: 'Share',
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (ctx) => ShareTaskDialog(
-                                        taskTitle: task.title,
-                                        onShare:
-                                            (
-                                              identifier,
-                                              name,
-                                              shareType,
-                                              message,
-                                            ) async {
-                                              // For backward compatibility, just use the email/identifier
-                                              try {
-                                                final result = await onShare(
-                                                  task,
-                                                  identifier,
-                                                );
-                                                if (result != null) {
-                                                  // Show error message
-                                                  if (ctx.mounted) {
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(result),
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                      ),
-                                                    );
-                                                  }
-                                                  throw Exception(result);
-                                                }
-                                              } catch (e) {
-                                                rethrow;
-                                              }
-                                            },
-                                      ),
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.share,
-                                    color: Colors.black,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black.withOpacity(0.7),
+                                    ),
                                   ),
                                 ),
-                                IconButton(
-                                  tooltip: 'Edit',
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (ctx) {
-                                        final textController =
-                                            TextEditingController(
-                                              text: task.title,
-                                            );
-                                        String? selected = task.category;
-                                        return AlertDialog(
-                                          title: const Text('Update Task'),
-                                          content: SingleChildScrollView(
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                TextField(
-                                                  controller: textController,
-                                                  decoration:
-                                                      const InputDecoration(
-                                                        hintText: 'Title',
-                                                      ),
-                                                ),
-                                                const SizedBox(height: 12),
-                                                CategoryChipSelector(
-                                                  categories: categories,
-                                                  selectedCategory: selected,
-                                                  onCategorySelected: (c) {
-                                                    selected = c;
-                                                  },
-                                                ),
-                                                const SizedBox(height: 8),
-                                              ],
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      _buildActionButton(
+                        icon: Icons.share,
+                        tooltip: 'Share',
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => ShareTaskDialog(
+                              taskTitle: task.title,
+                              onShare:
+                                  (identifier, name, shareType, message) async {
+                                    try {
+                                      final result = await onShare(
+                                        task,
+                                        identifier,
+                                      );
+                                      if (result != null) {
+                                        if (ctx.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(result),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                        throw Exception(result);
+                                      }
+                                    } catch (e) {
+                                      rethrow;
+                                    }
+                                  },
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildActionButton(
+                        icon: Icons.edit,
+                        tooltip: 'Edit',
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) {
+                              final textController = TextEditingController(
+                                text: task.title,
+                              );
+                              String? selected = task.category;
+                              return AlertDialog(
+                                title: const Text('Update Task'),
+                                content: SingleChildScrollView(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TextField(
+                                        controller: textController,
+                                        decoration: const InputDecoration(
+                                          hintText: 'Title',
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.all(
+                                              Radius.circular(12),
                                             ),
                                           ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(ctx),
-                                              child: const Text('CANCEL'),
-                                            ),
-                                            TextButton(
-                                              onPressed: () {
-                                                Navigator.pop(ctx);
-                                                onEdit(
-                                                  index,
-                                                  textController.text.trim(),
-                                                  selected,
-                                                );
-                                              },
-                                              child: const Text('SAVE'),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    color: Colors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      CategoryChipSelector(
+                                        categories: categories,
+                                        selectedCategory: selected,
+                                        onCategorySelected: (c) {
+                                          selected = c;
+                                        },
+                                      ),
+                                      const SizedBox(height: 8),
+                                    ],
                                   ),
                                 ),
-                                IconButton(
-                                  tooltip: 'Delete',
-                                  onPressed: () => onDelete(index),
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.black,
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('CANCEL'),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(ctx);
+                                      onEdit(
+                                        index,
+                                        textController.text.trim(),
+                                        selected,
+                                      );
+                                    },
+                                    child: const Text('SAVE'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildActionButton(
+                        icon: Icons.delete_outline,
+                        tooltip: 'Delete',
+                        onPressed: () => onDelete(index),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onPressed,
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                offset: const Offset(2, 2),
+                blurRadius: 4,
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.1),
+                offset: const Offset(-2, -2),
+                blurRadius: 4,
+              ),
+            ],
+          ),
+          child: Icon(icon, size: 20, color: Colors.black.withOpacity(0.8)),
         ),
       ),
     );
