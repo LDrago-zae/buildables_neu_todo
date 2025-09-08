@@ -2,6 +2,8 @@ import 'package:buildables_neu_todo/repository/task_repository.dart';
 import 'package:buildables_neu_todo/services/fcm_token_storage.dart';
 import 'package:buildables_neu_todo/services/notification_service.dart';
 import 'package:buildables_neu_todo/views/auth/login_screen.dart';
+import 'package:buildables_neu_todo/views/home/task_detail_screen.dart';
+import 'package:buildables_neu_todo/models/task.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +12,6 @@ import 'core/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
-
 import 'firebase_options.dart';
 
 // Background message handler
@@ -36,8 +37,8 @@ void main() async {
     connectivity: Connectivity(),
   );
 
-  // Initialize local notifications
-  await NotificationService.initialize();
+  // Initialize local notifications with navigator key
+  await NotificationService.initialize(navigatorKey);
 
   // Set up background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -61,7 +62,6 @@ void main() async {
     if (hasConnectivity) {
       // Coming back online - sync pending changes and uploads
       await TaskRepository().syncPendingChanges();
-      // Note: TaskController will handle file uploads when it's instantiated
     }
   });
 
@@ -106,37 +106,162 @@ void main() async {
     }
   });
 
-  // Set up message handlers
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print('Got a message whilst in the foreground!');
-    print('Message data: ${message.data}');
-
-    if (message.notification != null) {
-      print('Message also contained a notification: ${message.notification}');
-      // Show local notification when app is in foreground
-      NotificationService.showNotification(message);
-    }
-  });
-
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    print('A new onMessageOpenedApp event was published!');
-    print('Message data: ${message.data}');
-    // Handle notification tap when app is in background
-    // You can navigate to specific screens based on message data
-  });
-
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+final navigatorKey = GlobalKey<NavigatorState>();
+
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _setupRealtimeSubscription();
+    _setupFcmHandlers();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    Supabase.instance.client.channel('notifications').unsubscribe();
+    super.dispose();
+  }
+
+  void _setupRealtimeSubscription() {
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+    print('Setting up Realtime subscription for user_id: $userId');
+
+    if (userId == null) {
+      print('No user logged in, skipping Realtime subscription');
+      return;
+    }
+
+    supabase
+        .channel('public:notifications')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'notifications',
+          callback: (payload) async {
+            print('Received Realtime notification: $payload');
+            final notification = payload.newRecord;
+            if (notification == null) return;
+            if (notification['user_id']?.toString() != userId) return;
+            await NotificationService.showLocalNotification(
+              title: notification['title'] as String,
+              body: notification['body'] as String,
+              data: notification['data'] as Map<String, dynamic>,
+            );
+
+            // Update notification state to 'displayed'
+            try {
+              await supabase
+                  .from('notifications')
+                  .update({
+                    'state': 'displayed',
+                    'updated_at': DateTime.now().toIso8601String(),
+                  })
+                  .eq('id', notification['id']);
+              print('Updated notification ${notification['id']} to displayed');
+            } catch (e) {
+              print('Error updating notification state: $e');
+            }
+          },
+        )
+        .subscribe((status, [error]) {
+          print('Realtime subscription status: $status');
+          if (error != null) print('Realtime subscription error: $error');
+        });
+  }
+
+  void _setupFcmHandlers() {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('Got a message whilst in the foreground!');
+      print('Message data: ${message.data}');
+      if (message.notification != null) {
+        print('Message also contained a notification: ${message.notification}');
+        NotificationService.showNotification(message);
+      }
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('A new onMessageOpenedApp event was published!');
+      print('Message data: ${message.data}');
+      if (message.data['todo_id'] != null) {
+        _navigateToTaskDetail(message.data['todo_id']);
+      }
+    });
+
+    FirebaseMessaging.instance.getInitialMessage().then((
+      RemoteMessage? message,
+    ) {
+      if (message != null && message.data['todo_id'] != null) {
+        _navigateToTaskDetail(message.data['todo_id']);
+      }
+    });
+  }
+
+  Future<void> _navigateToTaskDetail(String todoId) async {
+    final task = await _fetchTask(todoId);
+    if (task != null && navigatorKey.currentState != null) {
+      navigatorKey.currentState!.pushNamed(
+        '/task_details',
+        arguments: {
+          'task': task,
+          'categories': await _fetchCategories(),
+          'onTaskUpdated': (Task updatedTask) {
+            TaskRepository().updateTask(updatedTask);
+          },
+        },
+      );
+    }
+  }
+
+  Future<Task?> _fetchTask(String todoId) async {
+    try {
+      final response = await Supabase.instance.client
+          .from('todos')
+          .select()
+          .eq('id', todoId)
+          .single();
+      return Task.fromMap(response as Map<String, dynamic>);
+    } catch (e) {
+      print('Error fetching task: $e');
+      return null;
+    }
+  }
+
+  Future<List<String>> _fetchCategories() async {
+    // Replace with your actual category-fetching logic
+    return ['Work', 'Personal', 'Others'];
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
-      home: LoginScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const LoginScreen(),
+        '/task_details': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map;
+          return TaskDetailScreen(
+            task: args['task'] as Task,
+            categories: args['categories'] as List<String>,
+            onTaskUpdated: args['onTaskUpdated'] as Function(Task),
+          );
+        },
+      },
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: AppColors.background,

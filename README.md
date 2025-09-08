@@ -136,7 +136,19 @@ lib/
    );
    ```
 
-4. Set up storage bucket for file attachments:
+4. Create device_tokens table for push notifications:
+   ```sql
+   CREATE TABLE device_tokens (
+     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+     fcm_token TEXT NOT NULL,
+     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+     UNIQUE(user_id)
+   );
+   ```
+
+5. Set up storage bucket for file attachments:
    - Create a bucket named `task-files`
    - Set appropriate policies for authenticated users
 

@@ -478,7 +478,7 @@ class _ShareTaskDialogState extends State<ShareTaskDialog>
                                 : 'Please enter an email address';
                           }
                           if (_selectedShareType == ShareType.anyone &&
-                              !EmailService.isValidEmail(value.trim())) {
+                              !EmailService().isValidEmail(value.trim())) {
                             return 'Please enter a valid email address';
                           }
                           return null;

@@ -215,6 +215,58 @@ class ProfileTab extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      // Debug Edge Function Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.accentPink,
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () async {
+                            _showLoadingSnackBar(
+                              context,
+                              'Debugging Edge Function...',
+                            );
+
+                            try {
+                              final result = await taskController!
+                                  .debugEdgeFunction();
+                              _hideLoadingSnackBar(context);
+
+                              if (result['success']) {
+                                _showSuccessSnackBar(
+                                  context,
+                                  'Debug Completed Successfully! ✅',
+                                  'Edge Function is working. Check console for details.',
+                                );
+                              } else {
+                                _showErrorSnackBar(
+                                  context,
+                                  'Debug Found Issues ⚠️',
+                                  'Check console logs for detailed analysis',
+                                );
+                              }
+                            } catch (e) {
+                              _hideLoadingSnackBar(context);
+                              _showErrorSnackBar(
+                                context,
+                                'Debug Failed',
+                                e.toString(),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.bug_report),
+                          label: const Text(
+                            'Debug Edge Function',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                     ],
                     // Process Pending Notifications Button
                     SizedBox(

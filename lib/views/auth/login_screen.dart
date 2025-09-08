@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:buildables_neu_todo/core/app_colors.dart';
-import '../../services/fcm_token_storage.dart';
-import 'signup_screen.dart';
-import '../home/home_screen.dart';
+import 'package:buildables_neu_todo/services/fcm_token_storage.dart';
+import 'package:buildables_neu_todo/views/auth/signup_screen.dart';
+import 'package:buildables_neu_todo/views/home/home_screen.dart';
 import 'package:buildables_neu_todo/controllers/auth_controller.dart';
+import 'package:buildables_neu_todo/services/notification_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,6 +39,50 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _auth.login(_emailController.text.trim(), _passwordController.text);
       await saveFcmToken();
+
+      // Re-establish Realtime subscription for notifications table
+      final supabase = Supabase.instance.client;
+      supabase.channel('public:notifications').unsubscribe();
+      final userId = supabase.auth.currentUser?.id;
+      if (userId != null) {
+        print('Re-establishing Realtime subscription for user_id: $userId');
+        supabase
+            .channel('public:notifications')
+            .onPostgresChanges(
+              event: PostgresChangeEvent.insert,
+              schema: 'public',
+              table: 'notifications',
+              callback: (payload) async {
+                print('Received Realtime notification after login: $payload');
+                final notification = payload.newRecord;
+                if (notification == null) return;
+                if (notification['user_id']?.toString() != userId) return;
+                await NotificationService.showLocalNotification(
+                  title: notification['title'] as String,
+                  body: notification['body'] as String,
+                  data: notification['data'] as Map<String, dynamic>,
+                );
+                try {
+                  await supabase
+                      .from('notifications')
+                      .update({
+                        'state': 'displayed',
+                        'updated_at': DateTime.now().toIso8601String(),
+                      })
+                      .eq('id', notification['id']);
+                  print(
+                    'Updated notification ${notification['id']} to displayed',
+                  );
+                } catch (e) {
+                  print('Error updating notification state: $e');
+                }
+              },
+            )
+            .subscribe((status, [error]) {
+              print('Realtime subscription status after login: $status');
+              if (error != null) print('Realtime subscription error: $error');
+            });
+      }
 
       if (!mounted) return;
       Navigator.pushReplacement(
