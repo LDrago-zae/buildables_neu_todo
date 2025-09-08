@@ -2,12 +2,14 @@ import 'dart:io';
 import 'package:buildables_neu_todo/models/task.dart';
 import 'package:buildables_neu_todo/services/enhanced_file_service.dart';
 import 'package:buildables_neu_todo/services/email_service.dart';
+import 'package:buildables_neu_todo/services/notification_service.dart';
 import 'package:buildables_neu_todo/repository/task_repository.dart';
 import 'package:buildables_neu_todo/views/widgets/share_task_dialog.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class TaskController extends ChangeNotifier {
   final SupabaseClient _client = Supabase.instance.client;
@@ -81,6 +83,20 @@ class TaskController extends ChangeNotifier {
         callback: (payload) async {
           await _repository.syncPendingChanges();
           await _fetchAll();
+
+          try {
+            final record = payload.newRecord as Map<String, dynamic>?;
+            final title = record?['title'] as String? ?? 'New Task';
+
+            await NotificationService.showLocalNotification(
+              title: 'New task',
+              body: title,
+              data: {
+                'event': 'insert',
+                'task_id': (record?['id'] ?? '').toString(),
+              },
+            );
+          } catch (_) {}
         },
       )
       ..onPostgresChanges(
@@ -90,6 +106,26 @@ class TaskController extends ChangeNotifier {
         callback: (payload) async {
           await _repository.syncPendingChanges();
           await _fetchAll();
+
+          try {
+            final currentUserId = _client.auth.currentUser?.id;
+            final record = payload.newRecord as Map<String, dynamic>?;
+            final updatedBy =
+                record?['updated_by'] as String? ??
+                record?['created_by'] as String?;
+            final title = record?['title'] as String? ?? 'Task updated';
+
+            if (currentUserId != null && updatedBy != currentUserId) {
+              await NotificationService.showLocalNotification(
+                title: 'Task updated',
+                body: title,
+                data: {
+                  'event': 'update',
+                  'task_id': (record?['id'] ?? '').toString(),
+                },
+              );
+            }
+          } catch (_) {}
         },
       )
       ..onPostgresChanges(
@@ -99,6 +135,26 @@ class TaskController extends ChangeNotifier {
         callback: (payload) async {
           await _repository.syncPendingChanges();
           await _fetchAll();
+
+          try {
+            final currentUserId = _client.auth.currentUser?.id;
+            final oldRecord = payload.oldRecord as Map<String, dynamic>?;
+            final deletedBy =
+                oldRecord?['updated_by'] as String? ??
+                oldRecord?['created_by'] as String?;
+            final title = oldRecord?['title'] as String? ?? 'Task deleted';
+
+            if (currentUserId != null && deletedBy != currentUserId) {
+              await NotificationService.showLocalNotification(
+                title: 'Task deleted',
+                body: title,
+                data: {
+                  'event': 'delete',
+                  'task_id': (oldRecord?['id'] ?? '').toString(),
+                },
+              );
+            }
+          } catch (_) {}
         },
       )
       ..subscribe();
@@ -127,8 +183,65 @@ class TaskController extends ChangeNotifier {
         _tasks.insert(0, addedTask);
         notifyListeners();
       }
+
+      // 🚀 Call Edge Function for notification — FIXED PAYLOAD
+      await _sendNewTaskNotification(addedTask);
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // Helper method to create notification record instead of calling Edge Function directly
+  Future<void> _sendNewTaskNotification(Task task) async {
+    try {
+      print('� === CALLING EDGE FUNCTION ===');
+      print('📋 Task: ${task.title} (${task.id})');
+      print('👤 Created by: ${task.createdBy}');
+
+      final payload = {
+        'task_id': task.id,
+        'task_title': task.title,
+        'created_by': task.createdBy,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      print('📤 Payload: $payload');
+
+      final response = await _client.functions.invoke(
+        'send-notification',
+        body: payload,
+      );
+
+      print('📨 Response Status: ${response.status}');
+      print('📨 Response Data: ${response.data}');
+
+      if (response.status >= 400) {
+        print('❌ Edge Function Error - Status: ${response.status}');
+        print('❌ Response Data: ${response.data}');
+
+        // Specific 404 handling
+        if (response.status == 404) {
+          print('📋 404 Troubleshooting:');
+          print('  1. Check function name: "send-notification"');
+          print('  2. Verify function is deployed in Supabase dashboard');
+          print('  3. Check project URL in .env file');
+          print('  4. Ensure function is in "Active" state');
+        }
+      } else {
+        print('✅ Edge Function called successfully');
+      }
+    } catch (e, stackTrace) {
+      print('💥 Exception calling Edge Function:');
+      print('   Error: $e');
+      print('   Stack: ${stackTrace.toString().substring(0, 500)}...');
+
+      // Detailed error analysis
+      if (e is FunctionException) {
+        print('🔍 Function Error Details:');
+        print('  - Status Code: ${e.status}');
+        print('  - Reason: ${e.reasonPhrase}');
+        print('  - Details: ${e.details}');
+      }
     }
   }
 
@@ -323,26 +436,320 @@ class TaskController extends ChangeNotifier {
   // Test email configuration
   Future<void> testEmailConfiguration() async {
     print('\n=== TESTING EMAIL CONFIGURATION ===');
-    final result = await EmailService.testConfiguration();
-
-    if (result['success']) {
-      print('✅ ${result['message']}');
-      if (result['details'] != null) {
-        print('Details: ${result['details']}');
-      }
+    final emailService = EmailService();
+    if (emailService.isConfigured) {
+      print('✅ Email service appears configured');
+      print(
+        'Details: { from_email: ${emailService.fromEmail}, from_name: ${emailService.fromName} }',
+      );
     } else {
-      print('❌ ${result['error']}');
-      if (result['suggestions'] != null) {
-        print('Suggestions:');
-        for (String suggestion in result['suggestions']) {
-          print('  $suggestion');
-        }
-      }
-      if (result['exception'] != null) {
-        print('Exception: ${result['exception']}');
-      }
+      print('❌ Email service not fully configured');
+      print(
+        'Suggestions: Set MAILTRAP_API_TOKEN, MAILTRAP_INBOX_ID, MAILTRAP_FROM_EMAIL/NAME',
+      );
     }
     print('=====================================\n');
+  }
+
+  // Test notifications workflow — UPDATED APPROACH
+  Future<Map<String, dynamic>> testEdgeFunction() async {
+    try {
+      print('\n🧪 === TESTING NOTIFICATIONS WORKFLOW ===');
+
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        print('❌ No authenticated user found');
+        return {
+          'success': false,
+          'error': 'User not authenticated',
+          'details': 'Please ensure user is logged in before testing',
+        };
+      }
+
+      print('👤 Current user ID: ${currentUser.id}');
+      print('📧 Current user email: ${currentUser.email}');
+
+      // Check if device_tokens table exists and has data
+      try {
+        final tokensCheck = await _client
+            .from('device_tokens')
+            .select('fcm_token')
+            .eq('user_id', currentUser.id);
+
+        print('📱 FCM tokens found: ${tokensCheck.length}');
+        if (tokensCheck.isEmpty) {
+          print('⚠️  Warning: No FCM tokens found for current user');
+          print('💡 You may need to register device tokens first');
+        }
+      } catch (e) {
+        print('⚠️  Warning: Could not check device_tokens table: $e');
+      }
+
+      // Create a test notification record
+      final testTaskId = 'test-task-${DateTime.now().millisecondsSinceEpoch}';
+      final testPayload = {
+        'user_id': currentUser.id,
+        'title': 'Test Notification',
+        'body': 'This is a test notification from Flutter App',
+        'data': {
+          'todo_id': testTaskId,
+          'task_title': 'Test Task from Flutter App',
+          'test': true,
+          'created_at': DateTime.now().toIso8601String(),
+        },
+        'state': 'pending',
+      };
+
+      print('📤 Creating test notification record:');
+      print('   - User ID: ${testPayload['user_id']}');
+      print('   - Title: ${testPayload['title']}');
+      print('   - Body: ${testPayload['body']}');
+      print(
+        '   - Task ID: ${(testPayload['data'] as Map<String, dynamic>?)?['todo_id']}',
+      );
+
+      final startTime = DateTime.now();
+      print('⏱️  Creating notification at: ${startTime.toIso8601String()}');
+
+      // Insert notification record
+      await _client.from('notifications').insert(testPayload);
+
+      final endTime = DateTime.now();
+      final duration = endTime.difference(startTime);
+
+      print('⏱️  Notification created in: ${duration.inMilliseconds}ms');
+      print('✅ Test notification record created successfully!');
+      print(
+        '💡 The Edge Function will process this notification automatically',
+      );
+      print('=====================================\n');
+
+      return {
+        'success': true,
+        'message': 'Notification record created successfully',
+        'duration_ms': duration.inMilliseconds,
+        'payload_created': testPayload,
+        'note':
+            'Edge Function will process pending notifications automatically',
+      };
+    } catch (e) {
+      print('💥 Error testing notifications workflow: $e');
+      print('📍 Stack trace: ${StackTrace.current}');
+      print('=====================================\n');
+
+      return {'success': false, 'error': e.toString(), 'type': 'exception'};
+    }
+  }
+
+  // Debug Edge Function with comprehensive testing
+  Future<Map<String, dynamic>> debugEdgeFunction() async {
+    final result = <String, dynamic>{
+      'success': false,
+      'timestamp': DateTime.now().toIso8601String(),
+      'tests': <String, dynamic>{},
+    };
+
+    try {
+      print('🔍 === DEBUGGING EDGE FUNCTION ===');
+
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        result['error'] = 'No authenticated user';
+        print('❌ No authenticated user');
+        return result;
+      }
+
+      print('👤 User ID: ${currentUser.id}');
+      print('📧 User Email: ${currentUser.email}');
+      print('🔑 User Role: ${currentUser.role}');
+
+      // Test 1: Check Supabase connection
+      print('\n🧪 Test 1: Supabase Connection');
+      try {
+        final testQuery = await _client
+            .from('profiles')
+            .select('id')
+            .eq('id', currentUser.id)
+            .limit(1);
+
+        result['tests']['supabase_connection'] = {
+          'success': true,
+          'profile_found': testQuery.isNotEmpty,
+        };
+        print('✅ Supabase connection working');
+      } catch (e) {
+        result['tests']['supabase_connection'] = {
+          'success': false,
+          'error': e.toString(),
+        };
+        print('❌ Supabase connection failed: $e');
+      }
+
+      // Test 2: Check available functions
+      print('\n🧪 Test 2: Function Discovery');
+      try {
+        // Try to call a non-existent function to see the error pattern
+        final nonExistentResponse = await _client.functions.invoke(
+          'non-existent-function-test',
+          body: {'test': true},
+        );
+
+        result['tests']['function_discovery'] = {
+          'non_existent_status': nonExistentResponse.status,
+          'non_existent_data': nonExistentResponse.data,
+        };
+      } catch (e) {
+        result['tests']['function_discovery'] = {
+          'non_existent_error': e.toString(),
+        };
+      }
+
+      // Test 3: Try the actual function with minimal payload
+      print('\n🧪 Test 3: Minimal Function Call');
+      try {
+        final minimalPayload = {'test': true};
+        print('📤 Sending minimal payload: $minimalPayload');
+
+        final response = await _client.functions.invoke(
+          'send-notification',
+          body: minimalPayload,
+        );
+
+        final isSuccess = response.status >= 200 && response.status < 300;
+
+        result['tests']['minimal_call'] = {
+          'status': response.status,
+          'data': response.data,
+          'success': isSuccess,
+        };
+
+        print('📨 Minimal call response:');
+        print('  Status: ${response.status}');
+        print('  Data: ${response.data}');
+        print('  Success: $isSuccess');
+      } catch (e) {
+        result['tests']['minimal_call'] = {
+          'exception': e.toString(),
+          'success': false,
+        };
+        print('💥 Minimal call exception: $e');
+      }
+
+      // Test 4: Try with full payload
+      print('\n🧪 Test 4: Full Payload Function Call');
+      try {
+        final fullPayload = {
+          'task_id': 'debug-test-${DateTime.now().millisecondsSinceEpoch}',
+          'task_title': 'Debug Test Task',
+          'created_by': currentUser.id,
+          'debug_mode': true,
+        };
+
+        print('📤 Sending full payload: $fullPayload');
+
+        final response = await _client.functions.invoke(
+          'send-notification',
+          body: fullPayload,
+        );
+
+        final isSuccess = response.status >= 200 && response.status < 300;
+
+        result['tests']['full_call'] = {
+          'status': response.status,
+          'data': response.data,
+          'success': isSuccess,
+        };
+
+        print('📨 Full call response:');
+        print('  Status: ${response.status}');
+        print('  Data: ${response.data}');
+        print('  Success: $isSuccess');
+
+        if (isSuccess) {
+          result['success'] = true;
+        }
+      } catch (e) {
+        result['tests']['full_call'] = {
+          'exception': e.toString(),
+          'success': false,
+        };
+        print('💥 Full call exception: $e');
+      }
+
+      // Test 5: Check project configuration
+      print('\n🧪 Test 5: Project Configuration');
+      try {
+        // Access environment variables to check configuration
+        final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+        final supabaseKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+
+        result['tests']['project_config'] = {
+          'url_configured': supabaseUrl.isNotEmpty,
+          'key_configured': supabaseKey.isNotEmpty,
+          'url_format': supabaseUrl.contains('supabase.co'),
+          'partial_url': supabaseUrl.length > 30
+              ? supabaseUrl.substring(0, 30)
+              : supabaseUrl,
+        };
+
+        print('🔧 Project config:');
+        print('  URL configured: ${supabaseUrl.isNotEmpty}');
+        print('  Key configured: ${supabaseKey.isNotEmpty}');
+        print(
+          '  URL: ${supabaseUrl.length > 30 ? supabaseUrl.substring(0, 30) : supabaseUrl}...',
+        );
+      } catch (e) {
+        result['tests']['project_config'] = {'error': e.toString()};
+        print('❌ Project config check failed: $e');
+      }
+    } catch (e, stackTrace) {
+      result['global_error'] = e.toString();
+      result['stack_trace'] = stackTrace.toString();
+      print('💥 Global exception: $e');
+    }
+
+    print('\n🏁 Debug completed');
+    print('📊 Final result: $result');
+    return result;
+  }
+
+  // Manually trigger the Edge Function to process pending notifications
+  // Manually trigger the Edge Function to process pending notifications
+  Future<Map<String, dynamic>> processPendingNotifications() async {
+    try {
+      print('🔄 Processing pending notifications...');
+
+      // ✅ CALL send-notifications (plural) — your existing function
+      final response = await _client.functions.invoke('send-notification');
+
+      print('📨 Edge Function response: ${response.data}');
+
+      if (response.status >= 200 && response.status < 300) {
+        final data = response.data as Map<String, dynamic>?;
+        final sent = data?['sent'] ?? 0;
+        final total = data?['total'] ?? 0;
+
+        print('✅ Processed $sent/$total notifications');
+
+        return {
+          'success': true,
+          'data': response.data,
+          'status': response.status,
+          'sent': sent,
+          'total': total,
+        };
+      } else {
+        print('❌ Edge Function returned status ${response.status}');
+        return {
+          'success': false,
+          'error': 'HTTP ${response.status}: ${response.data}',
+          'status': response.status,
+        };
+      }
+    } catch (e) {
+      print('💥 Error processing notifications: $e');
+      return {'success': false, 'error': e.toString()};
+    }
   }
 
   // Legacy share method for backward compatibility
@@ -517,15 +924,20 @@ class TaskController extends ChangeNotifier {
       final currentUserEmail = await getUserEmail(currentUser.id);
       final currentUserName = await _getUserFullName(currentUser.id);
 
-      await _emailService.sendTaskShareNotification(
-        recipientEmail: recipientEmail,
-        recipientName: recipientName,
-        senderName: currentUserName,
-        senderEmail: currentUserEmail,
-        taskTitle: task.title,
-        taskCategory: task.category ?? 'General',
-        shareMessage: '',
-        hasAttachment: task.hasAttachment,
+      final subject = 'Task Invitation: ${task.title}';
+      final attachmentNote = task.hasAttachment
+          ? '\n\nThis task includes an attachment.'
+          : '';
+      final text =
+          'Hello $recipientName,\n\n$currentUserName ($currentUserEmail) invited you to collaborate on a task.'
+              '\n\nTask: ${task.title}\nCategory: ${task.category ?? 'General'}' +
+          attachmentNote;
+
+      await _emailService.sendEmail(
+        toEmail: recipientEmail,
+        toName: recipientName,
+        subject: subject,
+        text: text,
       );
 
       print('Task share email sent to $recipientEmail');
@@ -544,7 +956,6 @@ class TaskController extends ChangeNotifier {
       final currentUser = _client.auth.currentUser;
       if (currentUser == null) return;
 
-      final currentUserName = await _getUserFullName(currentUser.id);
       final sharedWith = task.sharedWith ?? [];
       if (sharedWith.isEmpty) return;
 
@@ -553,11 +964,11 @@ class TaskController extends ChangeNotifier {
           final userEmail = await getUserEmail(userId);
           final userName = await _getUserFullName(userId);
 
-          await _emailService.sendTaskCompletionNotification(
-            recipientEmail: userEmail,
-            recipientName: userName,
-            senderName: currentUserName,
-            taskTitle: task.title,
+          await _emailService.sendEmail(
+            toEmail: userEmail,
+            toName: userName,
+            subject: 'Task Completion Notification',
+            text: 'Your task has been completed.',
           );
         }
       }
@@ -622,7 +1033,7 @@ class TaskController extends ChangeNotifier {
       String? recipientUserId;
       try {
         // Try to find user by email first
-        if (EmailService.isValidEmail(userIdentifier)) {
+        if (EmailService().isValidEmail(userIdentifier)) {
           final userResponse = await _client.auth.admin.listUsers();
           final user = userResponse.firstWhere(
             (u) => u.email == userIdentifier,
@@ -672,6 +1083,17 @@ class TaskController extends ChangeNotifier {
         print(
           'TaskController: Task shared successfully with authenticated user: $userIdentifier',
         );
+
+        // 🚀 Notify shared user via Edge Function
+        await _client.functions.invoke(
+          'send-notification',
+          body: {
+            'task_id': task.id,
+            'task_title': task.title,
+            'recipient_id': recipientUserId,
+            'is_shared': true,
+          },
+        );
       } else {
         print('TaskController: Task already shared with user: $userIdentifier');
       }
@@ -717,18 +1139,11 @@ class TaskController extends ChangeNotifier {
       );
 
       // Send email notification via Mailtrap
-      final emailSent = await EmailService.sendTaskShareEmail(
-        recipientEmail: recipientEmail,
-        recipientName: recipientName,
-        senderName:
-            currentUser.userMetadata?['full_name'] ??
-            currentUser.email ??
-            'Unknown User',
-        senderEmail: currentUser.email ?? 'unknown@example.com',
-        taskTitle: task.title,
-        taskCategory: task.category ?? 'General',
-        shareMessage: message,
-        hasAttachment: task.hasAttachment,
+      final emailSent = await EmailService().sendEmail(
+        toEmail: recipientEmail,
+        toName: recipientName,
+        subject: 'Task Share Notification',
+        text: 'Your task has been shared.',
       );
 
       if (!emailSent) {

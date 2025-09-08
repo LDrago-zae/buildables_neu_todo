@@ -71,7 +71,9 @@ class TaskRepository {
 
   // Get local tasks
   Future<List<Task>> _getLocalTasks() async {
-    final query = await _localDb.select(_localDb.todos).get();
+    final query = await (_localDb.select(
+      _localDb.todos,
+    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
     return query
         .map(
           (row) => Task(
@@ -93,7 +95,10 @@ class TaskRepository {
 
   // Get remote tasks from Supabase
   Future<List<Task>> _getRemoteTasks() async {
-    final response = await _supabase.from('todos').select();
+    final response = await _supabase
+        .from('todos')
+        .select()
+        .order('created_at', ascending: false);
     return (response as List)
         .map((row) => Task.fromMap(row as Map<String, dynamic>))
         .toList();
