@@ -348,8 +348,14 @@ class TaskRepository {
 
       for (final localTask in unsyncedQuery) {
         try {
-          // Try to sync each task
-          await _supabase.from('todos').upsert({
+          // Check if task already exists in Supabase
+          final existingTask = await _supabase
+              .from('todos')
+              .select('id')
+              .eq('id', localTask.id)
+              .maybeSingle();
+
+          final taskData = {
             'id': localTask.id,
             'title': localTask.title,
             'category': localTask.category,
@@ -361,7 +367,18 @@ class TaskRepository {
             'updated_at': localTask.updatedAt.toIso8601String(),
             'shared_with': localTask.sharedWith,
             'attachment_url': localTask.attachmentUrl,
-          });
+          };
+
+          if (existingTask != null) {
+            // Update existing task
+            await _supabase
+                .from('todos')
+                .update(taskData)
+                .eq('id', localTask.id);
+          } else {
+            // Insert new task
+            await _supabase.from('todos').insert(taskData);
+          }
 
           // Mark as synced
           await (_localDb.update(_localDb.todos)

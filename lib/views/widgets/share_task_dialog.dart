@@ -190,11 +190,16 @@ class _ShareTaskDialogState extends State<ShareTaskDialog>
 
   @override
   Widget build(BuildContext context) {
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final availableHeight =
+        screenHeight - keyboardHeight - 100; // 100px for margins
+
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
         width: MediaQuery.of(context).size.width * 0.9,
-        constraints: const BoxConstraints(maxWidth: 500),
+        constraints: BoxConstraints(maxWidth: 500, maxHeight: availableHeight),
         decoration: BoxDecoration(
           color: AppColors.surface,
           border: Border.all(color: Colors.black, width: 3),
@@ -349,140 +354,204 @@ class _ShareTaskDialogState extends State<ShareTaskDialog>
             ),
 
             // Tab Content
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Info banner
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _selectedShareType == ShareType.authenticated
-                            ? AppColors.accentGreen.withOpacity(0.1)
-                            : AppColors.accentOrange.withOpacity(0.1),
-                        border: Border.all(
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Info banner
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
                           color: _selectedShareType == ShareType.authenticated
-                              ? AppColors.accentGreen
-                              : AppColors.accentOrange,
-                          width: 2,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _selectedShareType == ShareType.authenticated
-                                ? Icons.info_outline
-                                : Icons.email_outlined,
-                            size: 16,
-                            color: Colors.black,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _selectedShareType == ShareType.authenticated
-                                  ? 'Share with existing app users by username or email'
-                                  : 'Send email invitation to anyone, even non-users',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.black87,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Main input field
-                    Text(
-                      _selectedShareType == ShareType.authenticated
-                          ? 'USERNAME OR EMAIL *'
-                          : 'EMAIL ADDRESS *',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    TextFormField(
-                      controller: _identifierController,
-                      keyboardType: _selectedShareType == ShareType.anyone
-                          ? TextInputType.emailAddress
-                          : TextInputType.text,
-                      decoration: InputDecoration(
-                        hintText: _selectedShareType == ShareType.authenticated
-                            ? 'john_doe or john@example.com'
-                            : 'anyone@example.com',
-                        prefixIcon: Container(
-                          margin: const EdgeInsets.all(8),
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
+                              ? AppColors.accentGreen.withOpacity(0.1)
+                              : AppColors.accentOrange.withOpacity(0.1),
+                          border: Border.all(
                             color: _selectedShareType == ShareType.authenticated
                                 ? AppColors.accentGreen
                                 : AppColors.accentOrange,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.black, width: 2),
-                          ),
-                          child: Icon(
-                            _selectedShareType == ShareType.authenticated
-                                ? Icons.person
-                                : Icons.email,
-                            size: 16,
-                            color: Colors.black,
-                          ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.black,
                             width: 2,
                           ),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.black,
-                            width: 2,
-                          ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _selectedShareType == ShareType.authenticated
+                                  ? Icons.info_outline
+                                  : Icons.email_outlined,
+                              size: 16,
+                              color: Colors.black,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _selectedShareType == ShareType.authenticated
+                                    ? 'Share with existing app users by username or email'
+                                    : 'Send email invitation to anyone, even non-users',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.black,
-                            width: 3,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.background,
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return _selectedShareType == ShareType.authenticated
-                              ? 'Please enter a username or email'
-                              : 'Please enter an email address';
-                        }
-                        if (_selectedShareType == ShareType.anyone &&
-                            !EmailService.isValidEmail(value.trim())) {
-                          return 'Please enter a valid email address';
-                        }
-                        return null;
-                      },
-                    ),
 
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
-                    // Name field (optional for anyone, not shown for authenticated)
-                    if (_selectedShareType == ShareType.anyone) ...[
+                      // Main input field
+                      Text(
+                        _selectedShareType == ShareType.authenticated
+                            ? 'USERNAME OR EMAIL *'
+                            : 'EMAIL ADDRESS *',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      TextFormField(
+                        controller: _identifierController,
+                        keyboardType: _selectedShareType == ShareType.anyone
+                            ? TextInputType.emailAddress
+                            : TextInputType.text,
+                        decoration: InputDecoration(
+                          hintText:
+                              _selectedShareType == ShareType.authenticated
+                              ? 'john_doe or john@example.com'
+                              : 'anyone@example.com',
+                          prefixIcon: Container(
+                            margin: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color:
+                                  _selectedShareType == ShareType.authenticated
+                                  ? AppColors.accentGreen
+                                  : AppColors.accentOrange,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.black, width: 2),
+                            ),
+                            child: Icon(
+                              _selectedShareType == ShareType.authenticated
+                                  ? Icons.person
+                                  : Icons.email,
+                              size: 16,
+                              color: Colors.black,
+                            ),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Colors.black,
+                              width: 2,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Colors.black,
+                              width: 2,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Colors.black,
+                              width: 3,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: AppColors.background,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return _selectedShareType == ShareType.authenticated
+                                ? 'Please enter a username or email'
+                                : 'Please enter an email address';
+                          }
+                          if (_selectedShareType == ShareType.anyone &&
+                              !EmailService.isValidEmail(value.trim())) {
+                            return 'Please enter a valid email address';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Name field (optional for anyone, not shown for authenticated)
+                      if (_selectedShareType == ShareType.anyone) ...[
+                        const Text(
+                          'RECIPIENT NAME (OPTIONAL)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: InputDecoration(
+                            hintText: 'John Doe',
+                            prefixIcon: Container(
+                              margin: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.accentPink,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Colors.black,
+                                  width: 2,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.person_outline,
+                                size: 16,
+                                color: Colors.black,
+                              ),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.black,
+                                width: 2,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.black,
+                                width: 2,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.black,
+                                width: 3,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: AppColors.background,
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Message field
                       const Text(
-                        'RECIPIENT NAME (OPTIONAL)',
+                        'MESSAGE (OPTIONAL)',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -492,19 +561,20 @@ class _ShareTaskDialogState extends State<ShareTaskDialog>
                       const SizedBox(height: 8),
 
                       TextFormField(
-                        controller: _nameController,
+                        controller: _messageController,
+                        maxLines: 3,
                         decoration: InputDecoration(
-                          hintText: 'John Doe',
+                          hintText: 'Add a personal message...',
                           prefixIcon: Container(
                             margin: const EdgeInsets.all(8),
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: AppColors.accentPink,
+                              color: AppColors.accentCyan,
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(color: Colors.black, width: 2),
                             ),
                             child: const Icon(
-                              Icons.person_outline,
+                              Icons.message,
                               size: 16,
                               color: Colors.black,
                             ),
@@ -535,177 +605,123 @@ class _ShareTaskDialogState extends State<ShareTaskDialog>
                         ),
                       ),
 
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
+
+                      // Action buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => Navigator.pop(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  border: Border.all(
+                                    color: Colors.black,
+                                    width: 2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'CANCEL',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: GestureDetector(
+                              onTap: _isLoading ? null : _handleShare,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _isLoading
+                                      ? Colors.grey
+                                      : (_selectedShareType ==
+                                                ShareType.authenticated
+                                            ? AppColors.accentGreen
+                                            : AppColors.accentOrange),
+                                  border: Border.all(
+                                    color: Colors.black,
+                                    width: 2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: _isLoading
+                                      ? []
+                                      : [
+                                          BoxShadow(
+                                            color: Colors.black,
+                                            offset: const Offset(3, 3),
+                                            blurRadius: 0,
+                                          ),
+                                        ],
+                                ),
+                                child: _isLoading
+                                    ? const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'SHARING...',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            _selectedShareType ==
+                                                    ShareType.authenticated
+                                                ? Icons.person_add
+                                                : Icons.send,
+                                            size: 16,
+                                            color: Colors.black,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            _selectedShareType ==
+                                                    ShareType.authenticated
+                                                ? 'SHARE TASK'
+                                                : 'SEND INVITE',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
-
-                    // Message field
-                    const Text(
-                      'MESSAGE (OPTIONAL)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    TextFormField(
-                      controller: _messageController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText: 'Add a personal message...',
-                        prefixIcon: Container(
-                          margin: const EdgeInsets.all(8),
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentCyan,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.black, width: 2),
-                          ),
-                          child: const Icon(
-                            Icons.message,
-                            size: 16,
-                            color: Colors.black,
-                          ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.black,
-                            width: 2,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.black,
-                            width: 2,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.black,
-                            width: 3,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.background,
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Action buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => Navigator.pop(context),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                border: Border.all(
-                                  color: Colors.black,
-                                  width: 2,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'CANCEL',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: GestureDetector(
-                            onTap: _isLoading ? null : _handleShare,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: _isLoading
-                                    ? Colors.grey
-                                    : (_selectedShareType ==
-                                              ShareType.authenticated
-                                          ? AppColors.accentGreen
-                                          : AppColors.accentOrange),
-                                border: Border.all(
-                                  color: Colors.black,
-                                  width: 2,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: _isLoading
-                                    ? []
-                                    : [
-                                        BoxShadow(
-                                          color: Colors.black,
-                                          offset: const Offset(3, 3),
-                                          blurRadius: 0,
-                                        ),
-                                      ],
-                              ),
-                              child: _isLoading
-                                  ? const Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.black,
-                                          ),
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'SHARING...',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.black,
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  : Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          _selectedShareType ==
-                                                  ShareType.authenticated
-                                              ? Icons.person_add
-                                              : Icons.send,
-                                          size: 16,
-                                          color: Colors.black,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          _selectedShareType ==
-                                                  ShareType.authenticated
-                                              ? 'SHARE TASK'
-                                              : 'SEND INVITE',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.black,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
