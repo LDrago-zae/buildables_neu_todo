@@ -139,6 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return ProfileTab(
           completed: completed,
           pending: pending,
+          taskController: _taskController,
           onLogout: () {
             Navigator.pushAndRemoveUntil(
               context,

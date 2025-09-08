@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:buildables_neu_todo/core/app_colors.dart';
+import '../../services/fcm_token_storage.dart';
 import 'signup_screen.dart';
 import '../home/home_screen.dart';
 import 'package:buildables_neu_todo/controllers/auth_controller.dart';
@@ -35,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await _auth.login(_emailController.text.trim(), _passwordController.text);
+      await saveFcmToken();
 
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -43,9 +45,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: ${e.toString()}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Login failed: ${e.toString()}')));
     } finally {
       if (mounted) {
         setState(() {
@@ -54,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
-
 
   void _navigateToSignup() {
     Navigator.push(

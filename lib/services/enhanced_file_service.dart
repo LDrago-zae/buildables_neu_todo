@@ -4,7 +4,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:path/path.dart' as path;
 import 'package:mime/mime.dart';
-import 'package:uuid/uuid.dart';
 
 class EnhancedFileService {
   static final EnhancedFileService _instance = EnhancedFileService._internal();
