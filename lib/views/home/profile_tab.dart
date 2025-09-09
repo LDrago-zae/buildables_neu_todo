@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:buildables_neu_todo/core/app_colors.dart';
 import 'package:buildables_neu_todo/views/widgets/file_picker_test_widget.dart';
 import 'package:buildables_neu_todo/controllers/task_controller.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileTab extends StatelessWidget {
   final int completed;
@@ -116,6 +117,34 @@ class ProfileTab extends StatelessWidget {
                         label: const Text(
                           'Test File Picker',
                           style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () => testFCMNotification(context),
+                      icon: Icon(Icons.notifications_active),
+                      label: Text('Test FCM Notification'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () => testEdgeFunction(context),
+                      icon: Icon(Icons.cloud),
+                      label: Text('Test Edge Function'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
                         ),
                       ),
                     ),
@@ -504,5 +533,61 @@ class _StatPill extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+Future<void> testEdgeFunction(BuildContext context) async {
+  try {
+    _showSnackBar(context, 'Calling edge function...', Colors.blue);
+
+    final response = await Supabase.instance.client.functions.invoke(
+      'dynamic-processor',
+      body: {'test': true},
+    );
+
+    _showSnackBar(
+      context,
+      'Edge function response: ${response.data}',
+      Colors.green,
+    );
+  } catch (e) {
+    _showSnackBar(context, 'Edge function error: $e', Colors.red);
+  }
+}
+
+void _showSnackBar(BuildContext context, String message, Color color) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      backgroundColor: color,
+      duration: Duration(seconds: 3),
+    ),
+  );
+}
+
+Future<void> testFCMNotification(BuildContext context) async {
+  try {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      _showSnackBar(context, 'User not logged in', Colors.red);
+      return;
+    }
+
+    _showSnackBar(context, 'Sending test notification...', Colors.blue);
+
+    final response = await Supabase.instance.client.functions.invoke(
+      'dynamic-processor',
+      body: {
+        'test': true,
+        'user_id': user.id,
+        'title': '🚀 Test Notification',
+        'body': 'This is only a test via FCM v1 API',
+        'data': {'type': 'test'},
+      },
+    );
+
+    _showSnackBar(context, 'Edge response: ${response.data}', Colors.green);
+  } catch (e) {
+    _showSnackBar(context, 'Error: $e', Colors.red);
   }
 }
