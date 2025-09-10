@@ -208,7 +208,7 @@ class TaskController extends ChangeNotifier {
       print('📤 Payload: $payload');
 
       final response = await _client.functions.invoke(
-        'send-notification',
+        'dynamic-processor',
         body: payload,
       );
 
@@ -222,7 +222,7 @@ class TaskController extends ChangeNotifier {
         // Specific 404 handling
         if (response.status == 404) {
           print('📋 404 Troubleshooting:');
-          print('  1. Check function name: "send-notification"');
+          print('  1. Check function name: "dynamic-processor"');
           print('  2. Verify function is deployed in Supabase dashboard');
           print('  3. Check project URL in .env file');
           print('  4. Ensure function is in "Active" state');
@@ -611,7 +611,7 @@ class TaskController extends ChangeNotifier {
         print('📤 Sending minimal payload: $minimalPayload');
 
         final response = await _client.functions.invoke(
-          'send-notification',
+          'dynamic-processor',
           body: minimalPayload,
         );
 
@@ -648,7 +648,7 @@ class TaskController extends ChangeNotifier {
         print('📤 Sending full payload: $fullPayload');
 
         final response = await _client.functions.invoke(
-          'send-notification',
+          'dynamic-processor',
           body: fullPayload,
         );
 
@@ -719,8 +719,8 @@ class TaskController extends ChangeNotifier {
     try {
       print('🔄 Processing pending notifications...');
 
-      // ✅ CALL send-notifications (plural) — your existing function
-      final response = await _client.functions.invoke('send-notification');
+      // ✅ CALL dynamic-processor (plural) — your existing function
+      final response = await _client.functions.invoke('dynamic-processor');
 
       print('📨 Edge Function response: ${response.data}');
 
@@ -1086,7 +1086,7 @@ class TaskController extends ChangeNotifier {
 
         // 🚀 Notify shared user via Edge Function
         await _client.functions.invoke(
-          'send-notification',
+          'dynamic-processor',
           body: {
             'task_id': task.id,
             'task_title': task.title,
