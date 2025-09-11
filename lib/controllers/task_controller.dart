@@ -204,7 +204,7 @@ class TaskController extends ChangeNotifier {
 
       // Call Edge Function to process pending notifications
       print('📤 Calling Edge Function to process notifications...');
-      
+
       final response = await _client.functions.invoke(
         'dynamic-processor',
         body: {
@@ -239,7 +239,6 @@ class TaskController extends ChangeNotifier {
         print('❌ Edge Function returned error status: ${response.status}');
         print('❌ Error details: ${response.data}');
       }
-
     } catch (e, stackTrace) {
       print('❌ Error sending FCM notification: $e');
       print('📍 Stack trace: ${stackTrace.toString().substring(0, 500)}...');
@@ -285,7 +284,8 @@ class TaskController extends ChangeNotifier {
         done: false,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
-        attachmentUrl: attachmentUrl, // Include attachment URL in initial creation
+        attachmentUrl:
+            attachmentUrl, // Include attachment URL in initial creation
       );
 
       print('💾 Saving task to repository...');
