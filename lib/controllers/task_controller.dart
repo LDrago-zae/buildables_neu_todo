@@ -194,54 +194,56 @@ class TaskController extends ChangeNotifier {
   // Helper method to create notification record instead of calling Edge Function directly
   Future<void> _sendNewTaskNotification(Task task) async {
     try {
-      print('� === CALLING EDGE FUNCTION ===');
-      print('📋 Task: ${task.title} (${task.id})');
+      print('🔔 === SENDING FCM NOTIFICATION ===');
+      print('📋 Task: ${task.title}');
+      print('🆔 Task ID: ${task.id}');
       print('👤 Created by: ${task.createdBy}');
 
-      final payload = {
-        'task_id': task.id,
-        'task_title': task.title,
-        'created_by': task.createdBy,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
+      // Wait a moment for database trigger to complete
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      print('📤 Payload: $payload');
-
+      // Call Edge Function to process pending notifications
+      print('📤 Calling Edge Function to process notifications...');
+      
       final response = await _client.functions.invoke(
         'dynamic-processor',
-        body: payload,
+        body: {
+          'trigger': 'task_created',
+          'task_id': task.id,
+          'task_title': task.title,
+          'created_by': task.createdBy,
+          'category': task.category,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
       );
 
-      print('📨 Response Status: ${response.status}');
-      print('📨 Response Data: ${response.data}');
+      print('📨 Edge Function Response Status: ${response.status}');
+      print('📨 Edge Function Response Data: ${response.data}');
 
-      if (response.status >= 400) {
-        print('❌ Edge Function Error - Status: ${response.status}');
-        print('❌ Response Data: ${response.data}');
+      if (response.status >= 200 && response.status < 300) {
+        final data = response.data as Map<String, dynamic>?;
+        final success = data?['success'] ?? false;
+        final sent = data?['sent'] ?? 0;
+        final total = data?['total'] ?? 0;
+        final errors = data?['errors'] ?? [];
 
-        // Specific 404 handling
-        if (response.status == 404) {
-          print('📋 404 Troubleshooting:');
-          print('  1. Check function name: "dynamic-processor"');
-          print('  2. Verify function is deployed in Supabase dashboard');
-          print('  3. Check project URL in .env file');
-          print('  4. Ensure function is in "Active" state');
+        if (success && sent > 0) {
+          print('✅ FCM notification sent successfully: $sent/$total');
+        } else {
+          print('⚠️ FCM notification issues: $sent/$total sent');
+          if (errors.isNotEmpty) {
+            print('❌ Errors: $errors');
+          }
         }
       } else {
-        print('✅ Edge Function called successfully');
+        print('❌ Edge Function returned error status: ${response.status}');
+        print('❌ Error details: ${response.data}');
       }
-    } catch (e, stackTrace) {
-      print('💥 Exception calling Edge Function:');
-      print('   Error: $e');
-      print('   Stack: ${stackTrace.toString().substring(0, 500)}...');
 
-      // Detailed error analysis
-      if (e is FunctionException) {
-        print('🔍 Function Error Details:');
-        print('  - Status Code: ${e.status}');
-        print('  - Reason: ${e.reasonPhrase}');
-        print('  - Details: ${e.details}');
-      }
+    } catch (e, stackTrace) {
+      print('❌ Error sending FCM notification: $e');
+      print('📍 Stack trace: ${stackTrace.toString().substring(0, 500)}...');
+      // Don't rethrow - notification failure shouldn't break task creation
     }
   }
 
@@ -254,13 +256,24 @@ class TaskController extends ChangeNotifier {
       final user = _client.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
 
+      print('🚀 === ADDING NEW TASK ===');
+      print('📝 Title: $title');
+      print('🏷️ Category: ${category ?? 'None'}');
+      print('📎 Has attachment: ${attachmentFile != null}');
+
       final taskId = const Uuid().v4();
       String? attachmentUrl;
 
       // Store file using enhanced file service (handles offline/online automatically)
       if (attachmentFile != null) {
-        attachmentUrl = await _fileService.storeFile(attachmentFile, taskId);
-        print('File stored: $attachmentUrl');
+        print('📎 Uploading attachment...');
+        try {
+          attachmentUrl = await _fileService.storeFile(attachmentFile, taskId);
+          print('✅ Attachment stored: $attachmentUrl');
+        } catch (e) {
+          print('❌ Attachment upload failed: $e');
+          // Continue without attachment rather than failing completely
+        }
       }
 
       // Create task with repository
@@ -272,29 +285,28 @@ class TaskController extends ChangeNotifier {
         done: false,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
+        attachmentUrl: attachmentUrl, // Include attachment URL in initial creation
       );
 
+      print('💾 Saving task to repository...');
       final addedTask = await _repository.addTask(newTask);
 
-      // Update attachment if stored
-      if (attachmentUrl != null) {
-        final updatedTask = addedTask.copyWith(attachmentUrl: attachmentUrl);
-        await _repository.updateTask(updatedTask);
-
-        final index = _tasks.indexWhere((t) => t.id == addedTask.id);
-        if (index != -1) {
-          _tasks[index] = updatedTask;
-          notifyListeners();
-        }
-      } else {
-        final existingIndex = _tasks.indexWhere((t) => t.id == addedTask.id);
-        if (existingIndex == -1) {
-          _tasks.insert(0, addedTask);
-          notifyListeners();
-        }
+      // Update local state immediately for UI feedback
+      final existingIndex = _tasks.indexWhere((t) => t.id == addedTask.id);
+      if (existingIndex == -1) {
+        _tasks.insert(0, addedTask); // Add to beginning of list
+        notifyListeners();
       }
+
+      print('✅ Task saved successfully: ${addedTask.title}');
+
+      // 🔔 CRITICAL: Trigger FCM notification after task creation
+      print('🔔 Triggering FCM notification...');
+      await _sendNewTaskNotification(addedTask);
+
+      print('🎉 Task creation process completed!');
     } catch (e) {
-      print('Error adding task with attachment: $e');
+      print('❌ Error adding task with attachment: $e');
       rethrow;
     }
   }
