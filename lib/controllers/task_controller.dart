@@ -104,9 +104,8 @@ class TaskController extends ChangeNotifier {
         schema: 'public',
         table: 'todos',
         callback: (payload) async {
-          await _repository.syncPendingChanges();
+          // Avoid pushing local changes here; just refetch
           await _fetchAll();
-
           try {
             final currentUserId = _client.auth.currentUser?.id;
             final record = payload.newRecord as Map<String, dynamic>?;
@@ -114,7 +113,6 @@ class TaskController extends ChangeNotifier {
                 record?['updated_by'] as String? ??
                 record?['created_by'] as String?;
             final title = record?['title'] as String? ?? 'Task updated';
-
             if (currentUserId != null && updatedBy != currentUserId) {
               await NotificationService.showLocalNotification(
                 title: 'Task updated',
@@ -243,6 +241,27 @@ class TaskController extends ChangeNotifier {
       print('❌ Error sending FCM notification: $e');
       print('📍 Stack trace: ${stackTrace.toString().substring(0, 500)}...');
       // Don't rethrow - notification failure shouldn't break task creation
+    }
+  }
+
+  Future<void> reorderTasks(int oldIndex, int newIndex) async {
+    if (newIndex > oldIndex) newIndex -= 1;
+
+    // Optimistic local reorder
+    final moved = _tasks.removeAt(oldIndex);
+    _tasks.insert(newIndex, moved);
+
+    // Keep local models consistent (optional but recommended)
+    for (var i = 0; i < _tasks.length; i++) {
+      _tasks[i] = _tasks[i].copyWith(sortIndex: i);
+    }
+    notifyListeners();
+
+    try {
+      await _repository.persistTaskOrder(tasksInNewOrder: _tasks);
+    } catch (e) {
+      // Fallback: reload from server to restore order
+      await _fetchAll();
     }
   }
 

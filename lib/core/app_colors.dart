@@ -11,7 +11,8 @@ class AppColors {
   static const Color primary = Color(0xFF9CC5FF); // soft blue
 
   // Accents (soft/pastel)
-  static const Color accentYellow = Color(0xFFFFF3B0);
+  // Replaced former yellow with a soft lavender to avoid bright yellow
+  static const Color accentYellow = Color(0xFFE9D5FF); // soft lavender
   static const Color accentPink = Color(0xFFFFC1CC);
   static const Color accentCyan = Color(0xFFB2F0EE);
   static const Color accentGreen = Color(0xFFC6F6D5);
