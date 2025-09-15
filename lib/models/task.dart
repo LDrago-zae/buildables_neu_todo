@@ -10,6 +10,7 @@ class Task {
   final String? createdBy;
   final List<String>? sharedWith;
   final String? attachmentUrl;
+  final int? sortIndex;
 
   Task({
     required this.id,
@@ -23,6 +24,7 @@ class Task {
     this.createdBy,
     this.sharedWith,
     this.attachmentUrl,
+    this.sortIndex,
   }) : createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now();
 
@@ -38,6 +40,7 @@ class Task {
     String? createdBy,
     List<String>? sharedWith,
     String? attachmentUrl,
+    int? sortIndex,
   }) {
     return Task(
       id: id ?? this.id,
@@ -51,6 +54,7 @@ class Task {
       createdBy: createdBy ?? this.createdBy,
       sharedWith: sharedWith ?? this.sharedWith,
       attachmentUrl: attachmentUrl ?? this.attachmentUrl,
+      sortIndex: sortIndex ?? this.sortIndex,
     );
   }
 
@@ -73,6 +77,7 @@ class Task {
           ? List<String>.from(map['shared_with'] as List)
           : null,
       attachmentUrl: map['attachment_url'] as String?,
+      sortIndex: map['sort_index'] as int?,
     );
   }
 
@@ -88,6 +93,7 @@ class Task {
       'created_by': createdBy,
       'shared_with': sharedWith,
       'attachment_url': attachmentUrl,
+      'sort_index': sortIndex,
     };
   }
 
