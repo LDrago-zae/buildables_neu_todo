@@ -106,6 +106,8 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       case 1:
         return TasksTab(
+          onReorder: (oldIndex, newIndex) =>
+              _taskController.reorderTasks(oldIndex, newIndex),
           tasks: _taskController.tasks,
           categories: _categories,
           onAddTaskTap: _showAddTaskSheet,
