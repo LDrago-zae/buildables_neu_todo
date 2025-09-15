@@ -16,6 +16,9 @@ class TasksTab extends StatelessWidget {
   final Future<String?> Function(Task task, String email) onShare;
   final void Function(Task updatedTask) onTaskUpdated;
 
+  // NEW: bubble reorder to controller
+  final Future<void> Function(int oldIndex, int newIndex) onReorder; // NEW
+
   const TasksTab({
     super.key,
     required this.tasks,
@@ -26,6 +29,7 @@ class TasksTab extends StatelessWidget {
     required this.onEdit,
     required this.onShare,
     required this.onTaskUpdated,
+    required this.onReorder, // NEW
   });
 
   @override
@@ -122,11 +126,19 @@ class TasksTab extends StatelessWidget {
                         ),
                       ),
                     )
-                  : ListView.builder(
+                  : ReorderableListView.builder(
+                      buildDefaultDragHandles: false,
+                      onReorder: (oldIndex, newIndex) async {
+                        await onReorder(oldIndex, newIndex);
+                      },
                       itemCount: tasks.length,
                       itemBuilder: (context, index) {
                         final task = tasks[index];
-                        return _buildTaskCard(context, task, index);
+                        // Provide a stable, unique key per item
+                        return KeyedSubtree(
+                          key: ValueKey(task.id),
+                          child: _buildTaskCard(context, task, index),
+                        );
                       },
                     ),
             ),
@@ -252,6 +264,15 @@ class TasksTab extends StatelessWidget {
                                       showBorder: false,
                                     ),
                                   ],
+                                  const SizedBox(width: 8),
+                                  // NEW DRAG HANDLE
+                                  ReorderableDragStartListener(
+                                    index: index,
+                                    child: Icon(
+                                      Icons.drag_handle,
+                                      color: Colors.black.withOpacity(0.4),
+                                    ),
+                                  ),
                                 ],
                               ),
                               if (task.category != null)
