@@ -93,12 +93,13 @@ class TaskRepository {
         .toList();
   }
 
-  // Get remote tasks from Supabase
+  // Fetch ordered by sort_index (NULLS LAST), then created_at ASC
   Future<List<Task>> _getRemoteTasks() async {
     final response = await _supabase
         .from('todos')
         .select()
-        .order('created_at', ascending: false);
+        .order('sort_index', ascending: true, nullsFirst: false)
+        .order('created_at', ascending: true);
     return (response as List)
         .map((row) => Task.fromMap(row as Map<String, dynamic>))
         .toList();
@@ -244,6 +245,7 @@ class TaskRepository {
           'attachment_url': task.attachmentUrl,
           'created_at': task.createdAt?.toIso8601String(),
           'updated_at': task.updatedAt?.toIso8601String(),
+          'shared_with': task.sharedWith,
         });
         print('Task saved to Supabase');
       } catch (e) {
@@ -261,31 +263,55 @@ class TaskRepository {
 
     if (await isOnline) {
       try {
-        // Online: update in Supabase
-        await _supabase
-            .from('todos')
-            .update({
-              'title': updatedTask.title,
-              'done': updatedTask.done,
-              'category': updatedTask.category,
-              'updated_at': updatedTask.updatedAt!.toIso8601String(),
-              'shared_with': updatedTask.sharedWith,
-              'attachment_url': updatedTask.attachmentUrl,
-            })
-            .eq('id', task.id);
+        final patch = {
+          'title': updatedTask.title,
+          'done': updatedTask.done,
+          'category': updatedTask.category,
+          'updated_at': updatedTask.updatedAt!.toIso8601String(),
+          'shared_with': updatedTask.sharedWith,
+          'attachment_url': updatedTask.attachmentUrl,
+        };
+        if (updatedTask.sortIndex != null) {
+          patch['sort_index'] = updatedTask.sortIndex;
+        }
 
+        await _supabase.from('todos').update(patch).eq('id', task.id);
         await _updateLocal(updatedTask, isSynced: true);
         return updatedTask;
       } catch (e) {
-        // Offline: update local only
         await _updateLocal(updatedTask, isSynced: false);
         return updatedTask;
       }
     } else {
-      // Offline: update local only
       await _updateLocal(updatedTask, isSynced: false);
       return updatedTask;
     }
+  }
+
+  // Replace persistTaskOrder: per-row updates to avoid INSERT RLS on upsert
+  Future<void> persistTaskOrder({required List<Task> tasksInNewOrder}) async {
+    if (!await isSupabaseReachable) {
+      print('Supabase not reachable, skip persistTaskOrder');
+      return;
+    }
+
+    final nowIso = DateTime.now().toIso8601String();
+
+    // Update each row with its new index
+    // You can batch with Future.wait; keep concurrency reasonable.
+    final futures = <Future>[];
+    for (var i = 0; i < tasksInNewOrder.length; i++) {
+      final id = tasksInNewOrder[i].id;
+      futures.add(
+        _supabase
+            .from('todos')
+            .update({'sort_index': i, 'updated_at': nowIso})
+            .eq('id', id),
+      );
+    }
+
+    await Future.wait(futures);
+    print('Persisted ${tasksInNewOrder.length} sort_index updates to Supabase');
   }
 
   // Update task in local database

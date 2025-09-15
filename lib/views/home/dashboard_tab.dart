@@ -17,7 +17,7 @@ class DashboardTab extends StatelessWidget {
     final totalTasks = tasks.length;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(top: 40, left: 20, right: 20, bottom: 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -74,7 +74,7 @@ class DashboardTab extends StatelessWidget {
             'Completed',
             completed.toString(),
             Icons.check_circle,
-            Colors.green,
+            AppColors.accentGreen,
           ),
         ),
         const SizedBox(width: 12),
@@ -83,7 +83,7 @@ class DashboardTab extends StatelessWidget {
             'Pending',
             pending.toString(),
             Icons.pending,
-            Colors.orange,
+            AppColors.accentYellow,
           ),
         ),
       ],
@@ -101,10 +101,10 @@ class DashboardTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: Colors.black12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -118,10 +118,10 @@ class DashboardTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withOpacity(0.35),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 20),
+                child: Icon(icon, color: Colors.black, size: 20),
               ),
               const Spacer(),
             ],
@@ -155,10 +155,10 @@ class DashboardTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: Colors.black12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -184,7 +184,7 @@ class DashboardTab extends StatelessWidget {
                   PieChartSectionData(
                     value: completed.toDouble(),
                     title: 'Completed\n$completed',
-                    color: Colors.green,
+                    color: AppColors.accentGreen,
                     radius: 60,
                     titleStyle: const TextStyle(
                       fontSize: 12,
@@ -195,7 +195,7 @@ class DashboardTab extends StatelessWidget {
                   PieChartSectionData(
                     value: pending.toDouble(),
                     title: 'Pending\n$pending',
-                    color: Colors.orange,
+                    color: AppColors.accentYellow,
                     radius: 60,
                     titleStyle: const TextStyle(
                       fontSize: 12,
@@ -235,10 +235,10 @@ class DashboardTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: Colors.black12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -334,10 +334,10 @@ class DashboardTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: Colors.black12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -403,7 +403,7 @@ class DashboardTab extends StatelessWidget {
                     barRods: [
                       BarChartRodData(
                         toY: counts[index].toDouble(),
-                        color: _getCategoryColor(categories[index]),
+                        color: AppColors.primary.withOpacity(0.7),
                         width: 20,
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(4),
@@ -418,26 +418,5 @@ class DashboardTab extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'work':
-        return Colors.blue;
-      case 'personal':
-        return Colors.green;
-      case 'study':
-        return Colors.purple;
-      case 'shopping':
-        return Colors.orange;
-      case 'health':
-        return Colors.red;
-      case 'fitness':
-        return Colors.teal;
-      case 'travel':
-        return Colors.indigo;
-      default:
-        return Colors.grey;
-    }
   }
 }
