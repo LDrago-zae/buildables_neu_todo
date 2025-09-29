@@ -88,6 +88,10 @@ class TaskRepository {
             createdBy: row.createdBy,
             sharedWith: row.sharedWith,
             attachmentUrl: row.attachmentUrl,
+            // NEW: Include location data from local DB
+            latitude: row.latitude,
+            longitude: row.longitude,
+            locationName: row.locationName,
           ),
         )
         .toList();
@@ -193,6 +197,10 @@ class TaskRepository {
                 sharedWith: Value(task.sharedWith),
                 attachmentUrl: Value(task.attachmentUrl),
                 isSynced: const Value(true),
+                // NEW: Include location data in sync to local
+                latitude: Value(task.latitude),
+                longitude: Value(task.longitude),
+                locationName: Value(task.locationName),
               ),
             );
       }
@@ -228,6 +236,10 @@ class TaskRepository {
             isSynced: Value(
               supabaseReachable,
             ), // Mark as synced only if Supabase is reachable
+            // NEW: Include location data in local insert
+            latitude: Value(task.latitude),
+            longitude: Value(task.longitude),
+            locationName: Value(task.locationName),
           ),
         );
 
@@ -246,6 +258,10 @@ class TaskRepository {
           'created_at': task.createdAt?.toIso8601String(),
           'updated_at': task.updatedAt?.toIso8601String(),
           'shared_with': task.sharedWith,
+          // NEW: Include location data in Supabase insert
+          'latitude': task.latitude,
+          'longitude': task.longitude,
+          'location_name': task.locationName,
         });
         print('Task saved to Supabase');
       } catch (e) {
@@ -270,6 +286,10 @@ class TaskRepository {
           'updated_at': updatedTask.updatedAt!.toIso8601String(),
           'shared_with': updatedTask.sharedWith,
           'attachment_url': updatedTask.attachmentUrl,
+          // NEW: Include location data in update
+          'latitude': updatedTask.latitude,
+          'longitude': updatedTask.longitude,
+          'location_name': updatedTask.locationName,
         };
         if (updatedTask.sortIndex != null) {
           patch['sort_index'] = updatedTask.sortIndex;
@@ -327,6 +347,10 @@ class TaskRepository {
         sharedWith: Value(task.sharedWith),
         attachmentUrl: Value(task.attachmentUrl),
         isSynced: Value(isSynced),
+        // NEW: Include location data in local update
+        latitude: Value(task.latitude),
+        longitude: Value(task.longitude),
+        locationName: Value(task.locationName),
       ),
     );
   }
