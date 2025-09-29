@@ -12,6 +12,11 @@ class Task {
   final String? attachmentUrl;
   final int? sortIndex;
 
+  // NEW: Location fields
+  final double? latitude;
+  final double? longitude;
+  final String? locationName;
+
   Task({
     required this.id,
     required this.title,
@@ -25,8 +30,15 @@ class Task {
     this.sharedWith,
     this.attachmentUrl,
     this.sortIndex,
+    // NEW: Location parameters
+    this.latitude,
+    this.longitude,
+    this.locationName,
   }) : createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now();
+
+  // NEW: Helper method to check if task has location
+  bool get hasLocation => latitude != null && longitude != null;
 
   Task copyWith({
     String? id,
@@ -41,6 +53,10 @@ class Task {
     List<String>? sharedWith,
     String? attachmentUrl,
     int? sortIndex,
+    // NEW: Location copyWith parameters
+    double? latitude,
+    double? longitude,
+    String? locationName,
   }) {
     return Task(
       id: id ?? this.id,
@@ -55,6 +71,10 @@ class Task {
       sharedWith: sharedWith ?? this.sharedWith,
       attachmentUrl: attachmentUrl ?? this.attachmentUrl,
       sortIndex: sortIndex ?? this.sortIndex,
+      // NEW: Location copyWith assignments
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      locationName: locationName ?? this.locationName,
     );
   }
 
@@ -78,6 +98,10 @@ class Task {
           : null,
       attachmentUrl: map['attachment_url'] as String?,
       sortIndex: map['sort_index'] as int?,
+      // NEW: Location fromMap assignments
+      latitude: map['latitude'] as double?,
+      longitude: map['longitude'] as double?,
+      locationName: map['location_name'] as String?,
     );
   }
 
@@ -94,6 +118,10 @@ class Task {
       'shared_with': sharedWith,
       'attachment_url': attachmentUrl,
       'sort_index': sortIndex,
+      // NEW: Location toInsertMap entries
+      'latitude': latitude,
+      'longitude': longitude,
+      'location_name': locationName,
     };
   }
 
@@ -107,6 +135,10 @@ class Task {
       'updated_at': DateTime.now().toIso8601String(),
       'shared_with': sharedWith,
       'attachment_url': attachmentUrl,
+      // NEW: Location toUpdateMap entries
+      'latitude': latitude,
+      'longitude': longitude,
+      'location_name': locationName,
     };
   }
 
