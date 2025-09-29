@@ -25,6 +25,11 @@ class Todos extends Table {
   TextColumn get attachmentUrl => text().nullable()();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 
+  // NEW: Location fields (all optional)
+  RealColumn get latitude => real().nullable()();
+  RealColumn get longitude => real().nullable()();
+  TextColumn get locationName => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -43,7 +48,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2; // Increment version for migration
+  int get schemaVersion => 3; // Increment version for location fields
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -51,8 +56,8 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
     },
     onUpgrade: (m, from, to) async {
-      if (from < 2) {
-        // For simplicity, drop and recreate tables with new schema
+      if (from < 3) {
+        // For simplicity with location fields, drop and recreate tables
         await m.drop(todos);
         await m.createAll();
       }

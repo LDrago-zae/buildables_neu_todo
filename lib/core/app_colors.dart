@@ -21,4 +21,7 @@ class AppColors {
 
   // Semantic
   static const Color danger = Color(0xFFFFB3B3);
+
+  // UI Elements
+  static const Color border = Color(0xFFE5E7EB);
 }

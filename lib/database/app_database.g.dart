@@ -143,6 +143,39 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _latitudeMeta = const VerificationMeta(
+    'latitude',
+  );
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+    'latitude',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _longitudeMeta = const VerificationMeta(
+    'longitude',
+  );
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+    'longitude',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _locationNameMeta = const VerificationMeta(
+    'locationName',
+  );
+  @override
+  late final GeneratedColumn<String> locationName = GeneratedColumn<String>(
+    'location_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -157,6 +190,9 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     sharedWith,
     attachmentUrl,
     isSynced,
+    latitude,
+    longitude,
+    locationName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -242,6 +278,27 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
       );
     }
+    if (data.containsKey('latitude')) {
+      context.handle(
+        _latitudeMeta,
+        latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta),
+      );
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(
+        _longitudeMeta,
+        longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta),
+      );
+    }
+    if (data.containsKey('location_name')) {
+      context.handle(
+        _locationNameMeta,
+        locationName.isAcceptableOrUnknown(
+          data['location_name']!,
+          _locationNameMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -301,6 +358,18 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_synced'],
       )!,
+      latitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}latitude'],
+      ),
+      longitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}longitude'],
+      ),
+      locationName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}location_name'],
+      ),
     );
   }
 
@@ -328,6 +397,9 @@ class Todo extends DataClass implements Insertable<Todo> {
   final List<String>? sharedWith;
   final String? attachmentUrl;
   final bool isSynced;
+  final double? latitude;
+  final double? longitude;
+  final String? locationName;
   const Todo({
     required this.id,
     required this.title,
@@ -341,6 +413,9 @@ class Todo extends DataClass implements Insertable<Todo> {
     this.sharedWith,
     this.attachmentUrl,
     required this.isSynced,
+    this.latitude,
+    this.longitude,
+    this.locationName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -367,6 +442,15 @@ class Todo extends DataClass implements Insertable<Todo> {
       map['attachment_url'] = Variable<String>(attachmentUrl);
     }
     map['is_synced'] = Variable<bool>(isSynced);
+    if (!nullToAbsent || latitude != null) {
+      map['latitude'] = Variable<double>(latitude);
+    }
+    if (!nullToAbsent || longitude != null) {
+      map['longitude'] = Variable<double>(longitude);
+    }
+    if (!nullToAbsent || locationName != null) {
+      map['location_name'] = Variable<String>(locationName);
+    }
     return map;
   }
 
@@ -390,6 +474,15 @@ class Todo extends DataClass implements Insertable<Todo> {
           ? const Value.absent()
           : Value(attachmentUrl),
       isSynced: Value(isSynced),
+      latitude: latitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(latitude),
+      longitude: longitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(longitude),
+      locationName: locationName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(locationName),
     );
   }
 
@@ -411,6 +504,9 @@ class Todo extends DataClass implements Insertable<Todo> {
       sharedWith: serializer.fromJson<List<String>?>(json['sharedWith']),
       attachmentUrl: serializer.fromJson<String?>(json['attachmentUrl']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      latitude: serializer.fromJson<double?>(json['latitude']),
+      longitude: serializer.fromJson<double?>(json['longitude']),
+      locationName: serializer.fromJson<String?>(json['locationName']),
     );
   }
   @override
@@ -429,6 +525,9 @@ class Todo extends DataClass implements Insertable<Todo> {
       'sharedWith': serializer.toJson<List<String>?>(sharedWith),
       'attachmentUrl': serializer.toJson<String?>(attachmentUrl),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'latitude': serializer.toJson<double?>(latitude),
+      'longitude': serializer.toJson<double?>(longitude),
+      'locationName': serializer.toJson<String?>(locationName),
     };
   }
 
@@ -445,6 +544,9 @@ class Todo extends DataClass implements Insertable<Todo> {
     Value<List<String>?> sharedWith = const Value.absent(),
     Value<String?> attachmentUrl = const Value.absent(),
     bool? isSynced,
+    Value<double?> latitude = const Value.absent(),
+    Value<double?> longitude = const Value.absent(),
+    Value<String?> locationName = const Value.absent(),
   }) => Todo(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -460,6 +562,9 @@ class Todo extends DataClass implements Insertable<Todo> {
         ? attachmentUrl.value
         : this.attachmentUrl,
     isSynced: isSynced ?? this.isSynced,
+    latitude: latitude.present ? latitude.value : this.latitude,
+    longitude: longitude.present ? longitude.value : this.longitude,
+    locationName: locationName.present ? locationName.value : this.locationName,
   );
   Todo copyWithCompanion(TodosCompanion data) {
     return Todo(
@@ -479,6 +584,11 @@ class Todo extends DataClass implements Insertable<Todo> {
           ? data.attachmentUrl.value
           : this.attachmentUrl,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
+      locationName: data.locationName.present
+          ? data.locationName.value
+          : this.locationName,
     );
   }
 
@@ -496,7 +606,10 @@ class Todo extends DataClass implements Insertable<Todo> {
           ..write('createdBy: $createdBy, ')
           ..write('sharedWith: $sharedWith, ')
           ..write('attachmentUrl: $attachmentUrl, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('locationName: $locationName')
           ..write(')'))
         .toString();
   }
@@ -515,6 +628,9 @@ class Todo extends DataClass implements Insertable<Todo> {
     sharedWith,
     attachmentUrl,
     isSynced,
+    latitude,
+    longitude,
+    locationName,
   );
   @override
   bool operator ==(Object other) =>
@@ -531,7 +647,10 @@ class Todo extends DataClass implements Insertable<Todo> {
           other.createdBy == this.createdBy &&
           other.sharedWith == this.sharedWith &&
           other.attachmentUrl == this.attachmentUrl &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude &&
+          other.locationName == this.locationName);
 }
 
 class TodosCompanion extends UpdateCompanion<Todo> {
@@ -547,6 +666,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<List<String>?> sharedWith;
   final Value<String?> attachmentUrl;
   final Value<bool> isSynced;
+  final Value<double?> latitude;
+  final Value<double?> longitude;
+  final Value<String?> locationName;
   final Value<int> rowid;
   const TodosCompanion({
     this.id = const Value.absent(),
@@ -561,6 +683,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.sharedWith = const Value.absent(),
     this.attachmentUrl = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.locationName = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TodosCompanion.insert({
@@ -576,6 +701,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.sharedWith = const Value.absent(),
     this.attachmentUrl = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.locationName = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : title = Value(title),
        category = Value(category),
@@ -593,6 +721,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Expression<String>? sharedWith,
     Expression<String>? attachmentUrl,
     Expression<bool>? isSynced,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
+    Expression<String>? locationName,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -608,6 +739,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       if (sharedWith != null) 'shared_with': sharedWith,
       if (attachmentUrl != null) 'attachment_url': attachmentUrl,
       if (isSynced != null) 'is_synced': isSynced,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (locationName != null) 'location_name': locationName,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -625,6 +759,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Value<List<String>?>? sharedWith,
     Value<String?>? attachmentUrl,
     Value<bool>? isSynced,
+    Value<double?>? latitude,
+    Value<double?>? longitude,
+    Value<String?>? locationName,
     Value<int>? rowid,
   }) {
     return TodosCompanion(
@@ -640,6 +777,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       sharedWith: sharedWith ?? this.sharedWith,
       attachmentUrl: attachmentUrl ?? this.attachmentUrl,
       isSynced: isSynced ?? this.isSynced,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      locationName: locationName ?? this.locationName,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -685,6 +825,15 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
+    if (locationName.present) {
+      map['location_name'] = Variable<String>(locationName.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -706,6 +855,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
           ..write('sharedWith: $sharedWith, ')
           ..write('attachmentUrl: $attachmentUrl, ')
           ..write('isSynced: $isSynced, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('locationName: $locationName, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -737,6 +889,9 @@ typedef $$TodosTableCreateCompanionBuilder =
       Value<List<String>?> sharedWith,
       Value<String?> attachmentUrl,
       Value<bool> isSynced,
+      Value<double?> latitude,
+      Value<double?> longitude,
+      Value<String?> locationName,
       Value<int> rowid,
     });
 typedef $$TodosTableUpdateCompanionBuilder =
@@ -753,6 +908,9 @@ typedef $$TodosTableUpdateCompanionBuilder =
       Value<List<String>?> sharedWith,
       Value<String?> attachmentUrl,
       Value<bool> isSynced,
+      Value<double?> latitude,
+      Value<double?> longitude,
+      Value<String?> locationName,
       Value<int> rowid,
     });
 
@@ -822,6 +980,21 @@ class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
     column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get locationName => $composableBuilder(
+    column: $table.locationName,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -894,6 +1067,21 @@ class $$TodosTableOrderingComposer
     column: $table.isSynced,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get locationName => $composableBuilder(
+    column: $table.locationName,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TodosTableAnnotationComposer
@@ -945,6 +1133,17 @@ class $$TodosTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<String> get locationName => $composableBuilder(
+    column: $table.locationName,
+    builder: (column) => column,
+  );
 }
 
 class $$TodosTableTableManager
@@ -987,6 +1186,9 @@ class $$TodosTableTableManager
                 Value<List<String>?> sharedWith = const Value.absent(),
                 Value<String?> attachmentUrl = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
+                Value<double?> latitude = const Value.absent(),
+                Value<double?> longitude = const Value.absent(),
+                Value<String?> locationName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TodosCompanion(
                 id: id,
@@ -1001,6 +1203,9 @@ class $$TodosTableTableManager
                 sharedWith: sharedWith,
                 attachmentUrl: attachmentUrl,
                 isSynced: isSynced,
+                latitude: latitude,
+                longitude: longitude,
+                locationName: locationName,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1017,6 +1222,9 @@ class $$TodosTableTableManager
                 Value<List<String>?> sharedWith = const Value.absent(),
                 Value<String?> attachmentUrl = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
+                Value<double?> latitude = const Value.absent(),
+                Value<double?> longitude = const Value.absent(),
+                Value<String?> locationName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TodosCompanion.insert(
                 id: id,
@@ -1031,6 +1239,9 @@ class $$TodosTableTableManager
                 sharedWith: sharedWith,
                 attachmentUrl: attachmentUrl,
                 isSynced: isSynced,
+                latitude: latitude,
+                longitude: longitude,
+                locationName: locationName,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
