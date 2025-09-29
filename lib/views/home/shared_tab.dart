@@ -4,6 +4,7 @@ import 'package:buildables_neu_todo/core/app_colors.dart';
 import 'package:buildables_neu_todo/models/task.dart';
 import 'package:buildables_neu_todo/controllers/task_controller.dart';
 import 'package:buildables_neu_todo/views/home/task_detail_screen.dart';
+import 'package:buildables_neu_todo/views/widgets/location_info_widget.dart';
 
 class SharedTab extends StatefulWidget {
   final TaskController taskController;
@@ -549,6 +550,17 @@ class _SharedTabState extends State<SharedTab>
                     ),
                   ],
                 ),
+                // Location information
+                if (task.hasLocation)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: LocationInfoWidget(
+                      latitude: task.latitude,
+                      longitude: task.longitude,
+                      locationName: task.locationName,
+                      onTap: () => _showLocationDetail(task),
+                    ),
+                  ),
                 if (task.createdAt != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
@@ -615,5 +627,37 @@ class _SharedTabState extends State<SharedTab>
     } else {
       return 'Just now';
     }
+  }
+
+  void _showLocationDetail(Task task) {
+    if (!task.hasLocation) return;
+
+    // For now, just show a simple dialog with location info
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Location Info'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (task.locationName != null) ...[
+              Text('Name: ${task.locationName!}'),
+              const SizedBox(height: 8),
+            ],
+            if (task.latitude != null && task.longitude != null) ...[
+              Text('Latitude: ${task.latitude!.toStringAsFixed(6)}'),
+              Text('Longitude: ${task.longitude!.toStringAsFixed(6)}'),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }

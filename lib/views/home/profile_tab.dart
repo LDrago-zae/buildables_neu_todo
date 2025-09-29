@@ -361,10 +361,53 @@ class ProfileTab extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton(
+                onPressed: () => _testRealtimeNotifications(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text(
+                  'Test Realtime Notifications',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _testRealtimeNotifications(BuildContext context) async {
+    try {
+      _showSnackBar(context, 'Testing realtime notifications...', Colors.blue);
+
+      if (taskController == null) {
+        _showSnackBar(context, 'TaskController not available', Colors.red);
+        return;
+      }
+
+      final result = await taskController!.testRealtimeNotifications();
+
+      if (result['success'] == true) {
+        _showSnackBar(
+          context,
+          'Test sent! Check console for realtime callback.',
+          Colors.green,
+        );
+      } else {
+        _showSnackBar(context, 'Test failed: ${result['error']}', Colors.red);
+      }
+    } catch (e) {
+      _showSnackBar(context, 'Error: $e', Colors.red);
+    }
   }
 
   void _showLoadingSnackBar(BuildContext context, String message) {
@@ -529,6 +572,8 @@ class _StatPill extends StatelessWidget {
               label.toUpperCase(),
               style: const TextStyle(fontWeight: FontWeight.w900),
             ),
+            const SizedBox(width: 8),
+            Icon(Icons.check_circle, size: 16, color: Colors.black),
           ],
         ),
       ),

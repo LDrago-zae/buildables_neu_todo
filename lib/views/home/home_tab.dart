@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:buildables_neu_todo/core/app_colors.dart';
 import 'package:buildables_neu_todo/models/task.dart';
+import 'package:buildables_neu_todo/views/widgets/location_info_widget.dart';
+import 'package:buildables_neu_todo/views/widgets/location_detail_screen.dart';
 
 class HomeTab extends StatelessWidget {
   final List<Task> tasks;
@@ -17,6 +19,22 @@ class HomeTab extends StatelessWidget {
     required this.onViewAll,
     required this.onToggle,
   });
+
+  // Helper method to show location detail
+  void _showLocationDetail(BuildContext context, Task task) {
+    if (!task.hasLocation) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationDetailScreen(
+          latitude: task.latitude!,
+          longitude: task.longitude!,
+          locationName: task.locationName,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,12 +154,29 @@ class HomeTab extends StatelessWidget {
                                       : TextDecoration.none,
                                 ),
                               ),
-                              subtitle: task.category != null
-                                  ? Text(
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (task.category != null)
+                                    Text(
                                       task.category!,
                                       style: const TextStyle(fontSize: 12),
-                                    )
-                                  : null,
+                                    ),
+                                  // NEW: Show location info if available
+                                  if (task.hasLocation) ...[
+                                    const SizedBox(height: 4),
+                                    LocationInfoWidget(
+                                      latitude: task.latitude,
+                                      longitude: task.longitude,
+                                      locationName: task.locationName,
+                                      isCompact: true,
+                                      onTap: () =>
+                                          _showLocationDetail(context, task),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                           ),
                         );
