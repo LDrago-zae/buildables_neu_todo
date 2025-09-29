@@ -5,6 +5,8 @@ import 'package:buildables_neu_todo/views/widgets/category_chip_selector.dart';
 import 'package:buildables_neu_todo/views/widgets/share_task_dialog.dart';
 import 'package:buildables_neu_todo/views/home/task_detail_screen.dart';
 import 'package:buildables_neu_todo/views/widgets/file_thumbnail_widget.dart';
+import 'package:buildables_neu_todo/views/widgets/location_info_widget.dart';
+import 'package:buildables_neu_todo/views/widgets/location_detail_screen.dart';
 
 class TasksTab extends StatelessWidget {
   final List<Task> tasks;
@@ -31,6 +33,22 @@ class TasksTab extends StatelessWidget {
     required this.onTaskUpdated,
     required this.onReorder, // NEW
   });
+
+  // Helper method to show location detail
+  void _showLocationDetail(BuildContext context, Task task) {
+    if (!task.hasLocation) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationDetailScreen(
+          latitude: task.latitude!,
+          longitude: task.longitude!,
+          locationName: task.locationName,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -241,8 +259,7 @@ class TasksTab extends StatelessWidget {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      task.title ??
-                                          'Untitled', // Handle null title
+                                      task.title,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
@@ -297,6 +314,19 @@ class TasksTab extends StatelessWidget {
                                     ),
                                   ),
                                 ),
+                              // NEW: Location info
+                              if (task.hasLocation)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: LocationInfoWidget(
+                                    latitude: task.latitude,
+                                    longitude: task.longitude,
+                                    locationName: task.locationName,
+                                    isCompact: true,
+                                    onTap: () =>
+                                        _showLocationDetail(context, task),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -316,7 +346,7 @@ class TasksTab extends StatelessWidget {
                                 showDialog(
                                   context: context,
                                   builder: (ctx) => ShareTaskDialog(
-                                    taskTitle: task.title ?? 'Untitled',
+                                    taskTitle: task.title,
                                     onShare:
                                         (
                                           identifier,
@@ -359,9 +389,7 @@ class TasksTab extends StatelessWidget {
                                   context: context,
                                   builder: (ctx) {
                                     final textController =
-                                        TextEditingController(
-                                          text: task.title ?? '',
-                                        );
+                                        TextEditingController(text: task.title);
                                     String? selected = task.category;
                                     return AlertDialog(
                                       title: const Text('Update Task'),
