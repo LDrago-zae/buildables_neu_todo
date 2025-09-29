@@ -8,11 +8,13 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'core/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 // Background message handler
 @pragma('vm:entry-point')
@@ -105,8 +107,17 @@ void main() async {
       }
     }
   });
+  await setupMapbox();
 
   runApp(const MyApp());
+}
+
+Future<void> setupMapbox() async {
+  await dotenv.load(fileName: ".env");
+  MapboxOptions.setAccessToken('MAPBOX_API_KEY');
+  if (dotenv.env['MAPBOX_API_KEY']?.isEmpty ?? true) {
+    throw Exception('MAPBOX_API_KEY is not set');
+  }
 }
 
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -153,7 +164,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           callback: (payload) async {
             print('Received Realtime notification: $payload');
             final notification = payload.newRecord;
-            if (notification == null) return;
             if (notification['user_id']?.toString() != userId) return;
             await NotificationService.showLocalNotification(
               title: notification['title'] as String,
@@ -179,6 +189,50 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         .subscribe((status, [error]) {
           print('Realtime subscription status: $status');
           if (error != null) print('Realtime subscription error: $error');
+        });
+    try {
+      supabase.channel('public:todos').unsubscribe();
+    } catch (_) {}
+
+    supabase
+        .channel('public:todos')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'todos',
+          callback: (payload) async {
+            try {
+              final row = payload.newRecord;
+              if (row == null) return;
+
+              final createdBy = row['created_by']?.toString();
+              final List<dynamic>? sharedWith =
+                  row['shared_with'] as List<dynamic>?;
+              final isMine = createdBy == userId;
+              final isShared = (sharedWith ?? [])
+                  .map((e) => e.toString())
+                  .contains(userId);
+              if (!(isMine || isShared))
+                return; // guard (RLS should already filter)
+
+              print('Realtime todo insert: ${row['title']} (id: ${row['id']})');
+
+              await NotificationService.showLocalNotification(
+                title: 'New Task Added',
+                body: row['title']?.toString() ?? 'A task was added',
+                data: {'todo_id': row['id']?.toString(), 'type': 'todo_insert'},
+              );
+
+              // Optionally refresh your tasks list here.
+            } catch (e, st) {
+              print('Error handling todo insert realtime: $e');
+              print(st);
+            }
+          },
+        )
+        .subscribe((status, [error]) {
+          print('Todos realtime status: $status');
+          if (error != null) print('Todos realtime error: $error');
         });
   }
 

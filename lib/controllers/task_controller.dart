@@ -158,7 +158,13 @@ class TaskController extends ChangeNotifier {
       ..subscribe();
   }
 
-  Future<void> addTask(String title, {String? category}) async {
+  Future<void> addTask(
+    String title, {
+    String? category,
+    double? latitude,
+    double? longitude,
+    String? locationName,
+  }) async {
     try {
       final user = _client.auth.currentUser;
       if (user == null) throw Exception('User not logged in');
@@ -172,6 +178,10 @@ class TaskController extends ChangeNotifier {
         done: false,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
+        // NEW: Include location data
+        latitude: latitude,
+        longitude: longitude,
+        locationName: locationName,
       );
 
       final addedTask = await _repository.addTask(newTask);
@@ -244,6 +254,48 @@ class TaskController extends ChangeNotifier {
     }
   }
 
+  // Add this method to your TaskController class
+
+  // Test realtime notifications
+  Future<Map<String, dynamic>> testRealtimeNotifications() async {
+    try {
+      print('🧪 === TESTING REALTIME NOTIFICATIONS ===');
+
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        return {'success': false, 'error': 'No authenticated user'};
+      }
+
+      print('👤 Current user ID: ${currentUser.id}');
+      print('📡 Testing realtime subscription...');
+
+      // Create a test notification directly in the database
+      final testNotification = {
+        'user_id': currentUser.id,
+        'title': '🧪 Realtime Test',
+        'body':
+            'This is a test notification from ${DateTime.now().toIso8601String()}',
+        'data': {'type': 'test', 'timestamp': DateTime.now().toIso8601String()},
+        'state': 'pending',
+      };
+
+      print('📤 Inserting test notification...');
+      await _client.from('notifications').insert(testNotification);
+
+      print('✅ Test notification inserted! Check for realtime callback...');
+
+      return {
+        'success': true,
+        'message':
+            'Test notification sent. Check console for realtime callback.',
+        'user_id': currentUser.id,
+      };
+    } catch (e) {
+      print('❌ Error testing realtime notifications: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
   Future<void> reorderTasks(int oldIndex, int newIndex) async {
     if (newIndex > oldIndex) newIndex -= 1;
 
@@ -269,6 +321,9 @@ class TaskController extends ChangeNotifier {
     required String title,
     String? category,
     File? attachmentFile,
+    double? latitude,
+    double? longitude,
+    String? locationName,
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -305,6 +360,10 @@ class TaskController extends ChangeNotifier {
         updatedAt: DateTime.now(),
         attachmentUrl:
             attachmentUrl, // Include attachment URL in initial creation
+        // NEW: Include location data
+        latitude: latitude,
+        longitude: longitude,
+        locationName: locationName,
       );
 
       print('💾 Saving task to repository...');
